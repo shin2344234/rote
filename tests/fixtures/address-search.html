@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Address search</title></head>
+<body>
+<!-- Acts like an address lookup: suggestions arrive after typing, and picking one sets the city. -->
+<form>
+  <label for="first">First name</label><input id="first" autocomplete="given-name">
+  <label for="street">Street Address Begin typing your street address to search. No results</label>
+  <input id="street" role="combobox" aria-controls="suggestions" aria-expanded="false" autocomplete="street-address">
+  <ul id="suggestions" role="listbox"></ul>
+  <span id="picked-city"></span>
+</form>
+<script>
+  const street = document.getElementById('street');
+  const list = document.getElementById('suggestions');
+  const SUGGESTIONS = [['123 Maple St, Dallas TX 75201', 'Dallas'], ['123 Maple St, Austin TX 78701', 'Austin']];
+  street.addEventListener('input', () => {
+    setTimeout(() => {
+      list.replaceChildren(...SUGGESTIONS.map(([text, city]) => {
+        const option = document.createElement('li');
+        option.setAttribute('role', 'option');
+        option.textContent = text;
+        option.addEventListener('click', () => {
+          street.value = text;
+          document.getElementById('picked-city').textContent = city;
+          list.replaceChildren();
+        });
+        return option;
+      }));
+    }, 120);
+  });
+</script>
+</body>
+</html>

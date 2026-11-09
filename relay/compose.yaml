@@ -1,0 +1,19 @@
+# The relay publishes no port. A reverse proxy or tunnel on the same Docker network
+# reaches it by name at http://rote-relay:8787. Copy .env.example to .env first.
+services:
+  relay:
+    build: .
+    image: rote-relay:local
+    container_name: rote-relay
+    restart: unless-stopped
+    # Holds GITHUB_TOKEN and GITHUB_REPO. The file stays on the host and is never committed.
+    env_file: .env
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    networks: [proxy]
+
+networks:
+  proxy:
+    external: true
+    name: ${PROXY_NETWORK:?Set PROXY_NETWORK in .env to the Docker network your proxy or tunnel is on}

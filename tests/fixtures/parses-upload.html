@@ -1,0 +1,17 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Form that parses uploads</title>
+<form onsubmit="return false" id="form">
+  <label for="file">Upload your resume</label><input id="file" type="file">
+  <label for="first">First name</label><input id="first">
+  <div id="slot"><label for="email">Email</label><input id="email" data-version="old"></div>
+</form>
+<script>
+  // Imitates sites that read the resume and rebuild the form on upload.
+  document.getElementById('file').addEventListener('change', () => {
+    setTimeout(() => {
+      document.getElementById('first').value = 'SiteParsedName';
+      document.getElementById('slot').innerHTML = '<label for="email">Email</label><input id="email" data-version="new">';
+    }, 250);
+  });
+</script>

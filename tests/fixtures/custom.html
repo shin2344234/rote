@@ -1,0 +1,89 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Custom widgets</title>
+<style>.field{margin:8px} [role=listbox]{border:1px solid #888} [role=option]{padding:2px}</style>
+<form onsubmit="return false">
+  <div class="field"><div class="application-label">First name</div><div><input id="nearby"></div></div>
+
+  <div class="field">
+    <span id="deg-label">Sponsorship required?</span>
+    <input id="combo" role="combobox" aria-labelledby="deg-label" aria-controls="combo-list" aria-expanded="false">
+    <div id="combo-list" role="listbox" hidden></div>
+  </div>
+
+  <div class="field">
+    <span id="auth-label">Are you authorized to work in the US?</span>
+    <button id="btn-select" type="button" aria-haspopup="listbox" aria-labelledby="auth-label">Select One</button>
+  </div>
+
+  <div class="field">
+    <span id="city-label">City</span>
+    <input id="typeahead" role="combobox" aria-labelledby="city-label" aria-autocomplete="list">
+  </div>
+
+  <div class="field" role="radiogroup" aria-label="Are you willing to relocate?">
+    <div id="r-yes" role="radio" aria-checked="false" tabindex="0">Yes</div>
+    <div id="r-no" role="radio" aria-checked="false" tabindex="0">No</div>
+  </div>
+
+  <div class="field"><x-open-input></x-open-input></div>
+  <div class="field"><x-closed-input></x-closed-input></div>
+
+  <div class="field"><div id="bio" contenteditable="true" aria-label="Professional summary" style="min-height:40px;border:1px solid"></div></div>
+
+  <div class="field"><div id="zone" style="padding:20px;border:1px dashed">Resume: drag and drop your file here</div></div>
+</form>
+<script>
+  const options = ['Yes', 'No'];
+  const combo = document.getElementById('combo');
+  const list = document.getElementById('combo-list');
+  combo.addEventListener('mousedown', () => {
+    list.hidden = false;
+    list.replaceChildren(...options.map((text) => {
+      const option = document.createElement('div');
+      option.setAttribute('role', 'option');
+      option.textContent = text;
+      option.addEventListener('mousedown', () => { combo.value = text; list.hidden = true; window.comboPicked = text; });
+      return option;
+    }));
+  });
+
+  const button = document.getElementById('btn-select');
+  button.addEventListener('click', () => {
+    setTimeout(() => {
+      const box = document.createElement('div');
+      box.setAttribute('role', 'listbox');
+      box.id = 'portal';
+      for (const text of ['Yes, I am authorized', 'No, I am not']) {
+        const option = document.createElement('div');
+        option.setAttribute('role', 'option');
+        option.textContent = text;
+        option.addEventListener('click', () => { button.textContent = text; box.remove(); });
+        box.append(option);
+      }
+      document.body.append(box);
+    }, 120);
+  });
+
+  for (const id of ['r-yes', 'r-no']) {
+    document.getElementById(id).addEventListener('click', () => {
+      for (const other of ['r-yes', 'r-no']) document.getElementById(other).setAttribute('aria-checked', String(other === id));
+    });
+  }
+
+  customElements.define('x-open-input', class extends HTMLElement {
+    connectedCallback() {
+      this.attachShadow({ mode: 'open' }).innerHTML = '<label for="s">Last name</label><input id="s">';
+    }
+  });
+  customElements.define('x-closed-input', class extends HTMLElement {
+    connectedCallback() {
+      window.closedRoot = this.attachShadow({ mode: 'closed' });
+      window.closedRoot.innerHTML = '<label for="s">Email</label><input id="s">';
+    }
+  });
+
+  const zone = document.getElementById('zone');
+  zone.addEventListener('dragover', (event) => event.preventDefault());
+  zone.addEventListener('drop', (event) => { event.preventDefault(); window.dropped = event.dataTransfer.files[0]?.name; });
+</script>

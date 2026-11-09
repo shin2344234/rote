@@ -1,0 +1,16 @@
+node_modules/
+dist/
+test-results/
+playwright-report/
+# Real resumes for manual testing. Never commit these.
+test-resumes/
+*.log
+bridge/host.bat
+bridge/host-manifest.json
+# Secrets and local tool output.
+.env
+.env.*
+!.env.example
+.playwright-mcp/
+.claude/
+*.zip

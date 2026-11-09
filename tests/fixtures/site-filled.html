@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Site filled</title></head>
+<body>
+<!-- Acts like a form the site filled from an uploaded resume: dropdowns keep their inputs empty and show the choice beside them. -->
+<form>
+  <label for="region">Favorite sales region</label>
+  <div aria-haspopup="listbox" aria-expanded="false">
+    <div class="input-select-input-single-value">Northwest</div>
+    <div><input id="region" aria-autocomplete="list" type="text"></div>
+  </div>
+  <label for="office">Preferred office wing</label>
+  <div aria-haspopup="listbox" aria-expanded="false">
+    <div class="input-select-input-single-value">Select an office</div>
+    <div><input id="office" aria-autocomplete="list" type="text"></div>
+  </div>
+  <label for="late">Nickname at work</label><input id="late" type="text">
+  <label for="blank">Favorite conference</label><input id="blank" type="text">
+</form>
+</body>
+</html>

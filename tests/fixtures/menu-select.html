@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Menu select</title>
+<style>select { position: absolute; width: 0; height: 0; opacity: 0; border: 0; }</style></head>
+<body>
+<nav><div><button id="account" type="button" aria-haspopup="true" aria-expanded="false">Account</button></div></nav>
+<form>
+  <!-- A styled button opens a menu in a portal. The hidden select only carries the label and name. -->
+  <div>
+    <label for="sel-state">State *</label>
+    <div class="box"><div><button id="state" class="toggle" data-menu-id="menu-state" aria-haspopup="true" aria-expanded="false" aria-label="State –Select–" type="button">–Select–</button></div>
+      <select id="sel-state" name="state.value" required aria-hidden="true" tabindex="-1"><option value=""></option></select></div>
+  </div>
+  <div>
+    <label for="sel-country">Country *</label>
+    <div class="box"><div><button id="country" class="toggle" data-menu-id="menu-country" aria-haspopup="true" aria-expanded="false" aria-label="Country United States" type="button">United States</button><button type="button" aria-label="Clear">x</button></div>
+      <select id="sel-country" name="country.value" required aria-hidden="true" tabindex="-1"><option value=""></option></select></div>
+  </div>
+</form>
+<script>
+  const choices = { 'menu-state': ['Alabama', 'Texas', 'Utah'], 'menu-country': ['Canada', 'United States'] };
+  for (const toggle of document.querySelectorAll('.toggle')) {
+    toggle.addEventListener('click', (event) => {
+      // The real widget treats detail 0 as a keyboard click and ignores it.
+      if (event.detail === 0) return;
+      document.querySelector('[role=menu]')?.remove();
+      const menu = document.createElement('div');
+      menu.id = toggle.dataset.menuId;
+      menu.setAttribute('role', 'menu');
+      for (const name of choices[menu.id]) {
+        const item = document.createElement('div');
+        item.setAttribute('role', 'menuitem');
+        item.textContent = name;
+        item.addEventListener('click', () => { toggle.textContent = name; menu.remove(); });
+        menu.append(item);
+      }
+      document.body.append(menu);
+    });
+  }
+</script>
+</body>
+</html>

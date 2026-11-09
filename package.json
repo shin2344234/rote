@@ -1,0 +1,34 @@
+{
+  "name": "rote",
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs",
+    "watch": "node build.mjs --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:e2e": "npm run build && playwright test"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^1.6.0",
+    "idb": "^8.0.4",
+    "mammoth": "^1.13.0",
+    "pdfjs-dist": "^6.5.438",
+    "jszip": "^3.10.2"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.65.0",
+    "@types/chrome": "^0.3.7",
+    "@types/node": "^26.6.6",
+    "esbuild": "^0.28.2",
+    "fake-indexeddb": "^6.2.8",
+    "http-server": "^14.1.1",
+    "pdf-lib": "^1.17.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "typescript": "^7.0.2",
+    "vitest": "^5.1.0"
+  },
+  "license": "MIT",
+  "private": true
+}

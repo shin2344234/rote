@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Regressions</title></head>
+<body>
+<form>
+  <label for="fn">First name</label><input id="fn" name="firstName">
+  <label for="ln">Last name</label><input id="ln" name="lastName">
+
+  <fieldset><legend>Are you willing to relocate?</legend>
+    <!-- Both radios share a parent, so only the text right after each one names it. -->
+    <div><input type="radio" name="move" value="y">Yes <input type="radio" name="move" value="n">No</div>
+  </fieldset>
+
+  <div role="radiogroup" aria-label="Are you legally authorized to work in the United States?">
+    <div role="radio" aria-checked="false" data-choice="yes">Yes</div>
+    <div role="radio" aria-checked="false" data-choice="no">No</div>
+  </div>
+
+  <fieldset><legend>Will you require visa sponsorship?</legend>
+    <label><input type="checkbox" name="spon" value="y" checked>Yes</label>
+    <label><input type="checkbox" name="spon" value="n">No</label>
+  </fieldset>
+</form>
+<script>
+  // This widget cuts the value short, as some length-limited inputs do.
+  document.querySelector('#ln').addEventListener('input', (event) => { event.target.value = event.target.value.slice(0, 4); });
+  const radios = document.querySelectorAll('[role=radio]');
+  for (const radio of radios) {
+    radio.addEventListener('click', () => radios.forEach((other) => other.setAttribute('aria-checked', String(other === radio))));
+  }
+</script>
+</body>
+</html>

@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Late parse</title></head>
+<body>
+<!-- Acts like a form whose server finishes reading the resume seconds after the page goes idle. -->
+<form id="form">
+  <label for="resume">Resume</label><input id="resume" type="file">
+  <label for="email">Email</label><input id="email" name="email">
+  <div id="phone-slot"><label for="phone">Phone</label><input id="phone" name="phone"></div>
+  <label for="city">City</label><input id="city" name="city">
+  <label for="zip">ZIP code</label><input id="zip" name="zip">
+</form>
+<script>
+  document.getElementById('resume').addEventListener('change', () => {
+    setTimeout(() => {
+      document.getElementById('email').value = '';
+      document.getElementById('city').value = '';
+      document.getElementById('phone-slot').innerHTML = '<label for="phone">Phone</label><input id="phone" name="phone">';
+      document.body.dataset.parsed = 'yes';
+    }, 4000);
+  });
+</script>
+</body>
+</html>

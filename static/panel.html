@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Rote</title>
+  <link rel="stylesheet" href="ui.css">
+</head>
+<body class="panel">
+  <header>
+    <h1>Rote</h1>
+    <button id="settings" class="small">Profile and logs</button>
+  </header>
+  <div class="card">
+    <label class="muted" for="resume">Resume to attach</label>
+    <select id="resume"></select>
+    <div class="actions" style="margin-top:8px">
+      <button id="scan">Scan page</button>
+      <button id="fill" class="primary" disabled>Fill form</button>
+      <button id="undo" disabled>Undo</button>
+    </div>
+    <div class="actions" style="margin-top:8px">
+      <button id="review" disabled title="Sends your whole profile to Claude, with the questions this tool could not answer">Review missed with Claude</button>
+    </div>
+    <p class="muted" style="margin:8px 0 0">This tool never submits. Review the form and submit it yourself.</p>
+  </div>
+  <div id="status"></div>
+  <div id="report"></div>
+  <p style="margin:12px 0"><button id="bug" class="small" title="Opens the report form, where you can read the report before sending it">Report a bug</button></p>
+  <p id="donate" class="muted" style="margin:12px 0">Rote is free. If it helps you get hired, you can <a href="https://buymeacoffee.com/SethWalker234" target="_blank" rel="noopener">buy me a coffee</a>.</p>
+  <script type="module" src="panel.js"></script>
+</body>
+</html>

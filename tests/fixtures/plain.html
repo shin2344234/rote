@@ -1,0 +1,31 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Plain form</title>
+<h1>Apply for this job</h1>
+<form id="form" onsubmit="window.submitted = true; return false">
+  <label for="fn">First Name *</label><input id="fn" name="job_application[first_name]" required>
+  <label for="ln">Last Name *</label><input id="ln" name="job_application[last_name]" required>
+  <label>Email <input id="email" type="email" name="job_application[email]"></label>
+  <label for="phone">Phone</label><input id="phone" type="tel" name="job_application[phone]">
+  <input id="trap" name="email_confirm_hidden" style="display:none">
+  <label for="state">State</label>
+  <select id="state" name="state"><option value="">Select...</option><option value="CA">California</option><option value="TX">Texas</option></select>
+  <label for="resume">Resume/CV</label><input id="resume" type="file" accept=".pdf,.docx" name="resume">
+  <label for="cover">Cover Letter</label><input id="cover" type="file" name="cover">
+  <label for="ssn">Social Security Number</label><input id="ssn" name="ssn">
+  <label for="dob">Date of Birth</label><input id="dob" name="dob">
+  <fieldset>
+    <legend>Are you legally authorized to work in the United States?</legend>
+    <label><input type="radio" name="auth" value="1"> Yes</label>
+    <label><input type="radio" name="auth" value="0"> No</label>
+  </fieldset>
+  <label for="gender">Gender</label>
+  <select id="gender"><option value="">Select</option><option>Male</option><option>Female</option><option>Decline To Self Identify</option></select>
+  <label for="why">Why do you want to work here?</label><textarea id="why" name="question_90210"></textarea>
+  <label><input id="consent" type="checkbox" name="consent"> I agree to the privacy policy</label>
+  <h2>Education</h2>
+  <label for="school">School</label><input id="school" name="educations[0][school]">
+  <label for="grad">End Date</label><input id="grad" name="educations[0][end]">
+  <button id="submit">Submit application</button>
+</form>
+<footer><label for="newsletter">Email</label><input id="newsletter" type="email"></footer>

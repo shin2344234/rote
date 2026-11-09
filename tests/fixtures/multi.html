@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Multiple choices</title></head>
+<body>
+<form>
+  <label for="fn">First name</label><input id="fn" name="firstName">
+
+  <div>
+    <span id="tool-label">Which design tools have you used?</span>
+    <div class="control">
+      <span id="tool-chips"></span>
+      <div id="tool" role="combobox" tabindex="0" aria-labelledby="tool-label" aria-controls="tool-list" aria-expanded="false">Select...</div>
+    </div>
+    <ul id="tool-list" role="listbox" aria-multiselectable="true" hidden>
+      <li role="option">Figma</li>
+      <li role="option">Sketch</li>
+      <li role="option">Canva</li>
+    </ul>
+  </div>
+
+  <fieldset><legend>Which office days suit you best?</legend>
+    <label><input type="checkbox" id="mon">Monday</label>
+    <label><input type="checkbox" id="tue">Tuesday</label>
+    <label><input type="checkbox" id="wed">Wednesday</label>
+    <label><input type="checkbox" id="fri">Friday, if remote</label>
+  </fieldset>
+
+  <div>
+    <label for="areas">Which sales territories would you cover?</label>
+    <select id="areas" multiple>
+      <option>North</option>
+      <option>South</option>
+      <option>East</option>
+      <option>West</option>
+    </select>
+  </div>
+
+  <div>
+    <span id="team-label">Which teams interest you?</span>
+    <div class="control">
+      <span id="team-chips"></span>
+      <div id="team" role="combobox" tabindex="0" aria-labelledby="team-label" aria-controls="team-list" aria-expanded="false">Select...</div>
+    </div>
+    <ul id="team-list" role="listbox" aria-multiselectable="true" hidden>
+      <li role="option" aria-selected="false">Platform</li>
+      <li role="option" aria-selected="false">Security</li>
+      <li role="option" aria-selected="false">Data</li>
+    </ul>
+  </div>
+</form>
+<script>
+  // Closes after every pick, as many hosted forms do.
+  const team = document.getElementById('team');
+  const list = document.getElementById('team-list');
+  const chips = document.getElementById('team-chips');
+  team.addEventListener('click', () => { list.hidden = !list.hidden; });
+  list.addEventListener('click', (event) => {
+    const option = event.target.closest('[role=option]');
+    option.setAttribute('aria-selected', String(option.getAttribute('aria-selected') !== 'true'));
+    chips.replaceChildren(...[...list.querySelectorAll('[aria-selected=true]')].map((picked) => {
+      const chip = document.createElement('span');
+      chip.className = 'chip';
+      chip.textContent = picked.textContent;
+      return chip;
+    }));
+    list.hidden = true;
+  });
+
+  // This one drops picked items from its menu and only shows them as removable chips.
+  const tool = document.getElementById('tool');
+  const toolList = document.getElementById('tool-list');
+  const toolChips = document.getElementById('tool-chips');
+  tool.addEventListener('click', () => { toolList.hidden = !toolList.hidden; });
+  toolList.addEventListener('click', (event) => {
+    const option = event.target.closest('[role=option]');
+    option.style.display = 'none';
+    const chip = document.createElement('span');
+    chip.className = 'chip';
+    chip.append(option.textContent);
+    const remove = document.createElement('button');
+    remove.type = 'button';
+    remove.textContent = '×';
+    remove.addEventListener('click', () => { option.style.display = ''; chip.remove(); });
+    chip.append(remove);
+    toolChips.append(chip);
+    toolList.hidden = true;
+  });
+</script>
+</body>
+</html>

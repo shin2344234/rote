@@ -1,0 +1,22 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>React form</title>
+<div id="root"></div>
+<script src="/node_modules/react/umd/react.production.min.js"></script>
+<script src="/node_modules/react-dom/umd/react-dom.production.min.js"></script>
+<script>
+  const e = React.createElement;
+  function App() {
+    const [state, setState] = React.useState({ first: '', email: '', state: '', file: '' });
+    const set = (key) => (event) => setState({ ...state, [key]: event.target.value });
+    window.reactState = state;
+    return e('form', null,
+      e('label', { htmlFor: 'a' }, 'First name'), e('input', { id: 'a', value: state.first, onChange: set('first') }),
+      e('label', { htmlFor: 'b' }, 'Email address'), e('input', { id: 'b', value: state.email, onChange: set('email') }),
+      e('label', { htmlFor: 'c' }, 'State'),
+      e('select', { id: 'c', value: state.state, onChange: set('state') }, e('option', { value: '' }, 'Choose'), e('option', { value: 'TX' }, 'Texas')),
+      e('label', { htmlFor: 'd' }, 'Resume'),
+      e('input', { id: 'd', type: 'file', onChange: (event) => setState({ ...state, file: event.target.files[0].name }) }));
+  }
+  ReactDOM.createRoot(document.getElementById('root')).render(e(App));
+</script>

@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Rote settings</title>
+  <link rel="stylesheet" href="ui.css">
+</head>
+<body class="options">
+  <h1>Rote</h1>
+  <section class="card">
+    <h2>Resumes</h2>
+    <p class="muted">PDF, DOCX or TXT. Files and parsed data stay in this browser.</p>
+    <input id="upload" type="file" accept=".pdf,.docx,.txt" aria-label="Add a resume file">
+    <div id="resumes"></div>
+    <div id="parse-report"></div>
+  </section>
+  <section class="card" id="gaps"></section>
+  <form id="profile"></form>
+  <section class="card">
+    <h2>Answer bank</h2>
+    <p class="muted">Saved from the side panel. Suggested when the same question appears again.</p>
+    <div id="answers"></div>
+  </section>
+  <section class="card">
+    <h2>AI review</h2>
+    <p class="muted">The Review missed button sends your whole profile and answer bank, including contact details, salary and EEO answers, along with the question text from the page. It all goes to the provider you pick here, and nothing goes out until you click that button. A local model such as Ollama keeps it on this PC.</p>
+    <label class="muted" for="claude-mode">Connection</label>
+    <select id="claude-mode" disabled>
+      <option value="off">Off</option>
+      <option value="api">Anthropic API key</option>
+      <option value="bridge">Claude Code on this PC</option>
+      <option value="codex-api">OpenAI API key</option>
+      <option value="codex">Codex on this PC</option>
+      <option value="openai">Other provider or local model</option>
+    </select>
+    <div id="codex-bridge-fields" hidden>
+      <p class="muted">Uses your Codex sign-in, and requests count against that plan.</p>
+      <label class="muted" for="codex-model">Model</label>
+      <input id="codex-model" type="text" autocomplete="off" spellcheck="false" placeholder="Leave empty for the Codex default" disabled>
+    </div>
+    <div id="ai-other-fields" hidden>
+      <div id="ai-provider-row">
+        <label class="muted" for="ai-provider">Provider</label>
+        <select id="ai-provider" disabled></select>
+        <label class="muted" for="ai-base">Base URL</label>
+        <input id="ai-base" type="url" autocomplete="off" spellcheck="false" disabled>
+      </div>
+      <div id="openrouter-row" hidden>
+        <button id="openrouter-signin" type="button">Sign in with OpenRouter</button>
+        <p class="muted">Opens openrouter.ai, where you approve Rote. OpenRouter then creates a key for this extension, and requests bill your OpenRouter credits. You can also paste a key below.</p>
+      </div>
+      <div id="ai-key-row">
+        <label class="muted" for="ai-key">API key</label>
+        <input id="ai-key" type="password" autocomplete="off" spellcheck="false" disabled>
+        <p class="muted">Stored unencrypted in this Chrome profile. Requests bill your account with that provider. <a id="ai-key-link" target="_blank" rel="noopener" hidden>Get a key</a></p>
+      </div>
+      <label class="muted" for="ai-model">Model</label>
+      <input id="ai-model" type="text" list="ai-models" autocomplete="off" spellcheck="false" disabled>
+      <datalist id="ai-models"></datalist>
+      <p class="muted">Test connection lists the models the server offers.</p>
+      <p id="ai-custom-note" class="muted">Any server that accepts the OpenAI chat format works under Custom server.</p>
+      <p id="ai-local-note" class="muted" hidden>Start the local server before you test. If Ollama refuses the extension, set the OLLAMA_ORIGINS environment variable to chrome-extension://* and restart Ollama. LM Studio needs CORS turned on in its server settings.</p>
+    </div>
+    <div id="claude-api-fields" hidden>
+      <label class="muted" for="claude-key">API key</label>
+      <input id="claude-key" type="password" autocomplete="off" spellcheck="false">
+      <p class="muted">Stored unencrypted in this Chrome profile. Requests bill your API account. <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">Get an Anthropic key</a></p>
+    </div>
+    <div id="claude-bridge-fields" hidden>
+      <p class="muted">Uses your Claude Code sign-in, and requests count against that plan.</p>
+    </div>
+    <div id="bridge-setup" hidden>
+      <p id="bridge-status" role="status">Checking this PC...</p>
+      <div id="bridge-install" hidden>
+        <p class="muted">Run this once in PowerShell from the Rote project folder. It registers the bridge for this copy of the extension. Then click Check again.</p>
+        <pre class="log" id="bridge-command"></pre>
+      </div>
+      <div class="actions" style="margin-top:8px">
+        <button id="bridge-copy" type="button" hidden>Copy setup command</button>
+        <button id="bridge-check" type="button">Check again</button>
+      </div>
+    </div>
+    <div id="claude-model-row">
+      <label class="muted" for="claude-model">Model</label>
+      <select id="claude-model" disabled></select>
+    </div>
+    <div class="actions" style="margin-top:8px">
+      <button id="claude-save" type="button" disabled>Save</button>
+      <button id="claude-test" type="button" disabled>Test connection</button>
+      <span id="claude-status" class="muted" role="status"></span>
+    </div>
+  </section>
+  <section class="card" id="bug">
+    <h2>Report a bug</h2>
+    <p class="muted">Sends your description and this extension's log to the developer. Values from your resume and anything typed into a form are removed first. No resume, profile or saved answer is included. Click Preview report to read everything before it goes.</p>
+    <label class="muted" for="bug-text">What went wrong</label>
+    <textarea id="bug-text" rows="4" maxlength="5000"></textarea>
+    <label class="muted" for="bug-contact">Email for a reply, optional</label>
+    <input id="bug-contact" type="email" autocomplete="off">
+    <div class="actions" style="margin-top:8px">
+      <button id="bug-preview" type="button">Preview report</button>
+      <button id="bug-send" type="button">Send report</button>
+      <span id="bug-status" class="muted" role="status"></span>
+    </div>
+    <pre id="bug-view" class="log" hidden></pre>
+  </section>
+  <section class="card">
+    <h2>Logs</h2>
+    <p class="muted">Field structure, match scores and errors are always recorded. Personal values appear only while debug logging is on, and it turns off after 30 minutes.</p>
+    <div class="actions">
+      <label><input id="debug" type="checkbox"> Debug logging</label>
+      <button id="log-refresh" type="button">Refresh</button>
+      <button id="log-export" type="button">Export JSONL</button>
+      <button id="log-clear" type="button">Clear</button>
+      <span id="log-count" class="muted"></span>
+    </div>
+    <pre id="log-view" class="log"></pre>
+  </section>
+  <section class="card" id="donate">
+    <h2>Support Rote</h2>
+    <p>Rote is free and has no ads. If it helps you get hired, a coffee keeps it going.</p>
+    <p><a href="https://buymeacoffee.com/SethWalker234" target="_blank" rel="noopener">Buy me a coffee</a></p>
+  </section>
+  <script type="module" src="options.js"></script>
+</body>
+</html>
