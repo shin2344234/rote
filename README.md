@@ -12,7 +12,15 @@ A Chrome Web Store listing is on the way. Until then, install from a release:
 2. Open `chrome://extensions` and turn on Developer mode.
 3. Click Load unpacked and pick the unzipped folder.
 
-To update, unzip the new release over the same folder and click the reload icon on the extension's card. Your profile and saved answers stay in the browser.
+Or let PowerShell do the download. This fetches the latest release, checks it against the checksum GitHub publishes, unpacks it to `%LOCALAPPDATA%\Rote\extension`, copies that path to the clipboard and opens `chrome://extensions`. Chrome does not let a script add an extension, so you still click Load unpacked and paste the path.
+
+```powershell
+irm https://raw.githubusercontent.com/shin2344234/rote/main/install.ps1 | iex
+```
+
+That command runs a script straight from the internet. To read it first, download [`install.ps1`](install.ps1) and run it yourself. Add `-WithBridge` to unpack the bridge too. Run it again to update.
+
+To update by hand, unzip the new release over the same folder and click the reload icon on the extension's card. Your profile and saved answers stay in the browser.
 
 The same release has `rote-bridge-<version>.zip`. You need it only to use a Claude Code or Codex install on your PC, and the extension walks you through it.
 
