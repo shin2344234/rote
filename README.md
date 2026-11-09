@@ -18,7 +18,15 @@ Or let PowerShell do the download. This fetches the latest release, checks it ag
 irm https://raw.githubusercontent.com/shin2344234/rote/main/install.ps1 | iex
 ```
 
-That command runs a script straight from the internet. To read it first, download [`install.ps1`](install.ps1) and run it yourself. Add `-WithBridge` to unpack the bridge too. Run it again to update.
+That command runs a script straight from the internet. To read it first, download [`install.ps1`](install.ps1) and run it yourself. Run it again to update.
+
+To set up the bridge for Claude Code and Codex in the same run, use this form instead. It unpacks the bridge and registers it with Chrome for the current Windows user, so the setup command further down is not needed. The bridge needs Node.
+
+```powershell
+& ([scriptblock]::Create((irm https://raw.githubusercontent.com/shin2344234/rote/main/install.ps1))) -WithBridge
+```
+
+A downloaded copy takes the same switch, as in `.\install.ps1 -WithBridge`. The registration depends on the folder path, so run the script again if you move the folder.
 
 To update by hand, unzip the new release over the same folder and click the reload icon on the extension's card. Your profile and saved answers stay in the browser.
 
@@ -44,7 +52,7 @@ Open-ended questions in the Needs you list get a Draft reply with Claude button.
 
 SSN, date of birth and bank fields, file uploads, lone checkboxes and fields that already hold a value are never sent.
 
-Pick the connection under Profile and logs. An Anthropic API key bills your API account, and the key is stored unencrypted in this Chrome profile. Claude Code on this PC uses your Claude Code sign-in and counts against that plan. It needs Windows, PowerShell 7 and Node, and one setup command run from the unzipped `rote-bridge` download.
+Pick the connection under Profile and logs. An Anthropic API key bills your API account, and the key is stored unencrypted in this Chrome profile. Claude Code on this PC uses your Claude Code sign-in and counts against that plan. It needs Windows and Node, and one setup command run from the unzipped `rote-bridge` download, unless the install script already did that with `-WithBridge`.
 
 When you pick Claude Code on this PC or Codex on this PC, the page checks the PC and says whether the bridge and each tool are there. If the bridge is missing, it shows the setup command with your extension's ID filled in and a button that copies it. Paste it into PowerShell, then click Check again. Running `bridge\install.ps1 -Uninstall` removes the registration.
 

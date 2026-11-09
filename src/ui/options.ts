@@ -293,7 +293,7 @@ async function initClaude(): Promise<void> {
     }
     log.info('bridge.status', { state: found.state, claude: found.state === 'ready' && found.claude.found, codex: found.state === 'ready' && found.codex.found });
   };
-  const command = `pwsh -ExecutionPolicy Bypass -File bridge\\install.ps1 -ExtensionId ${chrome.runtime.id}`;
+  const command = `powershell -ExecutionPolicy Bypass -File bridge\\install.ps1 -ExtensionId ${chrome.runtime.id}`;
   byId('bridge-command').textContent = command;
   const showFields = () => {
     const openaiOnly = mode.value === 'codex-api';

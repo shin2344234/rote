@@ -22,20 +22,24 @@ if ($Uninstall) {
   return
 }
 
-$node = (Get-Command node -ErrorAction Stop).Source
+$nodeCommand = Get-Command node -ErrorAction SilentlyContinue
+if (-not $nodeCommand) { throw 'The bridge needs Node. Install it from https://nodejs.org and run this again.' }
+$node = $nodeCommand.Source
 Set-Content -Path $launcher -Encoding ascii -Value @(
   '@echo off'
   "`"$node`" `"%~dp0host.mjs`""
 )
 
-[ordered]@{
+$json = [ordered]@{
   name            = $hostName
   description     = 'Lets Rote ask the local Claude Code or Codex install to answer form questions.'
   path            = $launcher
   type            = 'stdio'
   allowed_origins = @("chrome-extension://$ExtensionId/")
-} | ConvertTo-Json | Set-Content -Path $manifest -Encoding utf8NoBOM
+} | ConvertTo-Json
+# Chrome rejects a manifest that starts with a byte order mark, and this call writes none in any PowerShell version.
+[IO.File]::WriteAllText($manifest, $json)
 
 New-Item -Path $registryKey -Force | Out-Null
 Set-Item -Path $registryKey -Value $manifest
-Write-Output "Bridge installed for extension $ExtensionId. Reload the extension, then use Test connection."
+Write-Output "Bridge installed for extension $ExtensionId. In Rote, open Profile and logs and click Check again."

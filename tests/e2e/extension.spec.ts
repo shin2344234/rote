@@ -1146,7 +1146,7 @@ test('guides the bridge setup, links to key pages and offers the OpenRouter sign
   // The answer depends on whether the PC running the tests has the bridge registered for this extension ID.
   const bridge = options.locator('#bridge-status');
   await expect(bridge).toContainText(/not set up on this PC yet|different copy of this extension|The bridge is set up/);
-  await expect(options.locator('#bridge-command')).toHaveText(`pwsh -ExecutionPolicy Bypass -File bridge\\install.ps1 -ExtensionId ${extensionId}`);
+  await expect(options.locator('#bridge-command')).toHaveText(`powershell -ExecutionPolicy Bypass -File bridge\\install.ps1 -ExtensionId ${extensionId}`);
   const ready = (await bridge.textContent())!.includes('The bridge is set up');
   await expect(options.locator('#bridge-copy')).toBeVisible({ visible: !ready });
   if (ready) await expect(bridge).toContainText('Claude Code');
