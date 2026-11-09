@@ -7,7 +7,8 @@
     "watch": "node build.mjs --watch",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:e2e": "npm run build && playwright test"
+    "test:e2e": "npm run build && playwright test",
+    "package": "node package.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.6.0",

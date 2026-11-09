@@ -6,15 +6,15 @@ Rote is free. If it helps you get hired, you can [buy me a coffee](https://buyme
 
 ## Install
 
-```bash
-npm install
-```
+A Chrome Web Store listing is on the way. Until then, install from a release:
 
-```bash
-npm run build
-```
+1. Download `rote-<version>.zip` from the [latest release](https://github.com/shin2344234/rote/releases/latest) and unzip it somewhere you will keep it.
+2. Open `chrome://extensions` and turn on Developer mode.
+3. Click Load unpacked and pick the unzipped folder.
 
-Building needs Node 20 or newer. Open `chrome://extensions`, turn on Developer mode, click Load unpacked, and pick the `dist` folder. After a code change, run the build again and click the reload icon on the extension's card.
+To update, unzip the new release over the same folder and click the reload icon on the extension's card. Your profile and saved answers stay in the browser.
+
+The same release has `rote-bridge-<version>.zip`. You need it only to use a Claude Code or Codex install on your PC, and the extension walks you through it.
 
 ## Use
 
@@ -36,7 +36,7 @@ Open-ended questions in the Needs you list get a Draft reply with Claude button.
 
 SSN, date of birth and bank fields, file uploads, lone checkboxes and fields that already hold a value are never sent.
 
-Pick the connection under Profile and logs. An Anthropic API key bills your API account, and the key is stored unencrypted in this Chrome profile. Claude Code on this PC uses your Claude Code sign-in and counts against that plan. It needs Windows, PowerShell 7 and Node, and one setup command run from this folder.
+Pick the connection under Profile and logs. An Anthropic API key bills your API account, and the key is stored unencrypted in this Chrome profile. Claude Code on this PC uses your Claude Code sign-in and counts against that plan. It needs Windows, PowerShell 7 and Node, and one setup command run from the unzipped `rote-bridge` download.
 
 When you pick Claude Code on this PC or Codex on this PC, the page checks the PC and says whether the bridge and each tool are there. If the bridge is missing, it shows the setup command with your extension's ID filled in and a button that copies it. Paste it into PowerShell, then click Check again. Running `bridge\install.ps1 -Uninstall` removes the registration.
 
@@ -93,6 +93,26 @@ To teach it a new field, add a phrase to the matching entry in `src/engine/catal
 | `relay` | Node server that files bug reports and serves the site |
 
 The profile is stored unencrypted in the extension's IndexedDB. Content scripts never read it and receive only the values being filled.
+
+## Build from source
+
+Building needs Node 20 or newer.
+
+```bash
+npm install
+```
+
+```bash
+npm run build
+```
+
+Load the `dist` folder with Load unpacked. After a code change, run the build again and click the reload icon on the extension's card.
+
+To make the release downloads, run this. It writes both zips to `release/`.
+
+```bash
+npm run package
+```
 
 ## Tests
 

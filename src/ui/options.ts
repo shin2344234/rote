@@ -362,7 +362,7 @@ async function initClaude(): Promise<void> {
   byId('bridge-check').addEventListener('click', checkBridge);
   byId('bridge-copy').addEventListener('click', async () => {
     await navigator.clipboard.writeText(command);
-    byId('bridge-status').textContent = 'Copied. Paste it into PowerShell in the Rote project folder, then click Check again.';
+    byId('bridge-status').textContent = 'Copied. Paste it into PowerShell in the unzipped rote-bridge folder, then click Check again.';
   });
   const signInButton = byId<HTMLButtonElement>('openrouter-signin');
   signInButton.addEventListener('click', async () => {

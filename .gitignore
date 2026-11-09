@@ -14,3 +14,4 @@ bridge/host-manifest.json
 .playwright-mcp/
 .claude/
 *.zip
+release/
