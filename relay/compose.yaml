@@ -9,9 +9,15 @@ services:
     # Holds GITHUB_TOKEN and GITHUB_REPO. The file stays on the host and is never committed.
     env_file: .env
     read_only: true
+    # The only writable place. It holds counts.json, the daily download and install totals.
+    # Read them with: docker exec rote-relay cat /data/counts.json
+    volumes: [data:/data]
     cap_drop: [ALL]
     security_opt: [no-new-privileges:true]
     networks: [proxy]
+
+volumes:
+  data:
 
 networks:
   proxy:

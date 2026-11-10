@@ -1,8 +1,37 @@
 // Runs the relay under Node, for hosting in a container behind a Cloudflare Tunnel.
 // The request handling lives in src/index.js and this file only adapts it to node:http.
+import { readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { pathToFileURL } from 'node:url';
 import relay, { MAX_BODY_BYTES } from './src/index.js';
+
+// Keeps daily totals in a JSON file shaped like {"2026-11-10": {"download": 3, "install": 1}}.
+// Each count rewrites the whole file through a temporary copy, so a crash can't leave half a file.
+// If the file can't be written the totals stay in memory and the relay keeps running.
+export function createCounter(file, now = () => new Date()) {
+  let totals = {};
+  try {
+    totals = JSON.parse(readFileSync(file, 'utf8'));
+  } catch (error) {
+    if (error.code !== 'ENOENT') console.error(`Could not read ${file}: ${error.message}`);
+  }
+  let warned = false;
+  return {
+    totals: () => totals,
+    count(name) {
+      const day = now().toISOString().slice(0, 10);
+      totals[day] ??= {};
+      totals[day][name] = (totals[day][name] ?? 0) + 1;
+      try {
+        writeFileSync(`${file}.tmp`, `${JSON.stringify(totals, null, 1)}\n`);
+        renameSync(`${file}.tmp`, file);
+      } catch (error) {
+        if (!warned) console.error(`Could not save counts to ${file}: ${error.message}`);
+        warned = true;
+      }
+    },
+  };
+}
 
 // Allows `limit` calls per key in each window. Old keys are dropped as new ones arrive.
 export function createLimiter(limit = 5, windowMs = 60000, now = Date.now) {
@@ -66,7 +95,12 @@ export function createRelayServer(env) {
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   const port = Number(process.env.PORT ?? 8787);
-  const env = { GITHUB_TOKEN: process.env.GITHUB_TOKEN, GITHUB_REPO: process.env.GITHUB_REPO, REPORT_LIMITER: createLimiter() };
+  const env = {
+    GITHUB_TOKEN: process.env.GITHUB_TOKEN,
+    GITHUB_REPO: process.env.GITHUB_REPO,
+    REPORT_LIMITER: createLimiter(),
+    COUNTER: createCounter(process.env.COUNTS_FILE ?? '/data/counts.json'),
+  };
   createRelayServer(env).listen(port, () => {
     console.log(`Rote relay listening on ${port}. Reports go to ${env.GITHUB_REPO ?? 'nowhere'}${env.GITHUB_TOKEN ? '' : ', and no GitHub token is set'}.`);
   });

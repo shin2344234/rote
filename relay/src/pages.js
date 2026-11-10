@@ -524,10 +524,12 @@ ${nav}
 <p>AI review is off until you turn it on. When you click its button, your whole profile, your saved answers and the unanswered questions go to whichever AI provider you picked. If you picked a model on your own computer, they stay on your computer.</p>
 <p>A bug report only gets sent when you click Send report. It has your description, the extension and browser versions, the host name of the page, which AI connection and model you use, and Rote's log. The log has form field labels, field types, match scores and the address of each page you scanned, so a report can show which job postings you opened. Rote strips out your form answers and anything from your resume before the report leaves your browser. I only get a contact address if you type one in.</p>
 <p>Every few hours, when you open its panel, Rote asks GitHub for the newest release number so it can tell you when an update is out. That request carries nothing about you or your profile, though GitHub sees your IP address, as any website does.</p>
+<h2>What this site counts</h2>
+<p>This site keeps one number per day for each of its download links and for the pages the install script opens, so I can tell how many people install Rote. Opening one adds one to that day's total. The count doesn't record your IP address, your browser or anything else about you, and the site sets no cookies.</p>
 <h2>What happens to a report</h2>
 <p>Reports go to a private issue tracker that only I can read, and I use them to fix the bug you reported. If you want one deleted, send me its report ID in a new report.</p>
 <h2>What Rote never collects</h2>
-<p>Rote has no analytics and no tracking. It won't store or fill in Social Security numbers, dates of birth, passwords or bank details.</p>
+<p>The extension has no analytics and no tracking. It won't store or fill in Social Security numbers, dates of birth, passwords or bank details.</p>
 </main>
 `);
 

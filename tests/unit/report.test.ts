@@ -13,7 +13,10 @@ const LOGS: LogEntry[] = [
 const input = (over: Partial<Parameters<typeof buildReport>[0]> = {}) =>
   ({ description: '  The state list stayed empty.  ', contact: 'me@example.com', logs: LOGS, settings: SETTINGS, version: '0.1.0', browser: 'TestBrowser/1', ...over });
 
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.unstubAllGlobals();
+  vi.restoreAllMocks();
+});
 
 describe('buildReport', () => {
   it('removes personal values, keys and URL queries, and keeps field structure', () => {
@@ -169,6 +172,51 @@ describe('relay worker', () => {
     expect(bridge.status).toBe(302);
     expect(bridge.headers.get('location')).toBe('https://example.com/bridge.zip');
     expect(lookups).toBe(1);
+  });
+
+  it('counts downloads and script installs, and skips crawlers, HEAD requests and other pages', async () => {
+    vi.stubGlobal('fetch', async () => new Response('{}', { status: 500 }));
+    const counted: string[] = [];
+    const env = { ...ENV, COUNTER: { count: (name: string) => counted.push(name) } };
+    const open = (path: string, init: RequestInit = {}) => worker.fetch(new Request(`https://rote.walker-computers.com${path}`, init), env);
+    for (const path of ['/download', '/download-bridge', '/next/load', '/next/reload', '/', '/privacy']) await open(path);
+    await open('/download', { method: 'HEAD' });
+    await open('/download', { headers: { 'User-Agent': 'Slackbot-LinkExpanding 1.0' } });
+    expect(counted).toEqual(['download', 'download-bridge', 'install', 'update']);
+
+    const broken = { ...ENV, COUNTER: { count: () => { throw new Error('disk full'); } } };
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    expect((await worker.fetch(new Request('https://rote.walker-computers.com/next/load'), broken)).status).toBe(200);
+  });
+});
+
+describe('relay counter', () => {
+  it('keeps daily totals in a file that survives a restart', async () => {
+    const { mkdtempSync, readFileSync } = await import('node:fs');
+    const { join } = await import('node:path');
+    const { tmpdir } = await import('node:os');
+    const { createCounter } = await import('../../relay/server.mjs');
+    const file = join(mkdtempSync(join(tmpdir(), 'rote-counts-')), 'counts.json');
+    let day = '2026-11-10';
+    const clock = () => new Date(`${day}T12:00:00Z`);
+    const counter = createCounter(file, clock);
+    counter.count('download');
+    counter.count('download');
+    day = '2026-11-11';
+    counter.count('install');
+    expect(JSON.parse(readFileSync(file, 'utf8'))).toEqual({ '2026-11-10': { download: 2 }, '2026-11-11': { install: 1 } });
+
+    createCounter(file, clock).count('install');
+    expect(JSON.parse(readFileSync(file, 'utf8'))['2026-11-11']).toEqual({ install: 2 });
+  });
+
+  it('keeps counting in memory when the file cannot be written', async () => {
+    const { createCounter } = await import('../../relay/server.mjs');
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const counter = createCounter('/no/such/folder/counts.json', () => new Date('2026-11-10T00:00:00Z'));
+    counter.count('download');
+    counter.count('download');
+    expect(counter.totals()).toEqual({ '2026-11-10': { download: 2 } });
   });
 });
 

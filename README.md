@@ -104,6 +104,8 @@ Report a bug, in the side panel and under Profile and logs, sends a description 
 
 The relay in `relay/` is a small Node server. It commits the zip to `reports/` in a private GitHub repo and opens an issue that links to it. It also serves the home and privacy pages. It refuses reports over 1.5 MB and more than five a minute from one address.
 
+The relay also keeps daily totals for `/download`, `/download-bridge` and the two pages the install script opens, `/next/load` after a fresh install and `/next/reload` after an update. Each hit adds one to that day's number in `/data/counts.json`, which lives in the `data` volume. It stores no address, user agent or cookie, and it skips HEAD requests and user agents that look like crawlers or link previews. Read the totals with `docker exec rote-relay cat /data/counts.json`.
+
 To host your own, change `REPORT_URL` in `src/shared/report.ts` and `CALLBACK_URL` in `src/shared/openrouter.ts` to your domain. Copy `relay/.env.example` to `relay/.env` and fill in a private repo, a fine-grained GitHub token for that one repo with read and write access to Contents and Issues, and the Docker network your reverse proxy or tunnel is on. The container publishes no port, so the proxy reaches it at `http://rote-relay:8787`. Then run this in `relay/`:
 
 ```bash

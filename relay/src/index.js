@@ -122,9 +122,27 @@ async function fileReport(request, env) {
   return json(201, { id });
 }
 
+// Opening one of these adds one to that path's total for the day. Nothing about the visitor is
+// kept, so the totals show how many downloads and script installs happen and nothing else.
+// /next/load opens after a fresh install by script and /next/reload after an update.
+const COUNTED = { '/download': 'download', '/download-bridge': 'download-bridge', '/next/load': 'install', '/next/reload': 'update' };
+// Link previews and crawlers open download links too. Their user agent is checked and then dropped.
+const BOT = /bot|crawl|spider|preview|slurp|facebookexternalhit|curl|wget|python-requests|go-http-client/i;
+
+function count(request, env, pathname) {
+  const name = COUNTED[pathname];
+  if (!name || !env.COUNTER || request.method !== 'GET' || BOT.test(request.headers.get('User-Agent') ?? '')) return;
+  try {
+    env.COUNTER.count(name);
+  } catch (error) {
+    console.error(error.message);
+  }
+}
+
 export default {
   async fetch(request, env) {
     const { pathname } = new URL(request.url);
+    count(request, env, pathname);
     if (pathname === '/report') {
       if (request.method !== 'POST') return json(405, { error: 'Send reports with POST.' });
       return fileReport(request, env);
