@@ -3,7 +3,7 @@
 // the server, so it never ships inside the extension. The handler uses only web
 // standard requests and responses, and server.mjs runs it under Node.
 import { FONTS } from './fonts.js';
-import { CONNECTED_PAGE, HOME_PAGE, PRIVACY_PAGE } from './pages.js';
+import { CONNECTED_PAGE, HOME_PAGE, NEXT_LOAD_PAGE, NEXT_RELOAD_PAGE, PRIVACY_PAGE } from './pages.js';
 
 export const MAX_ZIP_BYTES = 1_500_000;
 export const MAX_BODY_BYTES = MAX_ZIP_BYTES + 100_000;
@@ -132,6 +132,9 @@ export default {
     if (request.method !== 'GET' && request.method !== 'HEAD') return json(405, { error: 'Method not allowed.' });
     if (pathname === '/') return page(HOME_PAGE);
     if (pathname === '/privacy') return page(PRIVACY_PAGE);
+    // The install script opens one of these, because Chrome won't open chrome://extensions from a command line.
+    if (pathname === '/next/load') return page(NEXT_LOAD_PAGE);
+    if (pathname === '/next/reload') return page(NEXT_RELOAD_PAGE);
     if (pathname === '/download' || pathname === '/download-bridge') {
       const location = await latestDownload(pathname === '/download' ? EXTENSION_ZIP : BRIDGE_ZIP);
       return new Response(null, { status: 302, headers: { Location: location, 'Cache-Control': 'no-store' } });

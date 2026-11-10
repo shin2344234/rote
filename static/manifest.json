@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Rote: job application autofill",
   "short_name": "Rote",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Fills job applications from a locally parsed resume. Your profile goes to the AI provider you pick only when you click Review.",
   "minimum_chrome_version": "120",
   "permissions": ["scripting", "storage", "sidePanel", "tabs", "nativeMessaging"],

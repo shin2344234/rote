@@ -395,7 +395,7 @@ ${nav}
       <ol class="steps">
         <li><span class="no">1</span><div><h4>Open PowerShell</h4><p>Press the Windows key, type PowerShell and press Enter.</p></div></li>
         <li id="b-commands"><span class="no">2</span><div><h4>Pick one command, paste it and press Enter</h4><p>To paste, click in the PowerShell window and press Ctrl+V.</p><p class="pick"><b>Rote only.</b> This doesn't install the AI bridge.</p><div class="cmd"><code>${command}</code><button class="tk small" type="button" data-copy="${command}">Copy</button></div><p class="pick"><b>Rote and the AI bridge.</b> This installs both. <a href="#bridge">Install what the bridge needs</a> first.</p><div class="cmd"><code>${bridgeCommand}</code><button class="tk small" type="button" data-copy="${bridgeCommand}">Copy</button></div><p class="pick">Either one runs a script from the internet, so <a href="https://github.com/shin2344234/rote/blob/main/install.ps1">read it first</a> if that makes you nervous. It stops if the download doesn't match the file on GitHub.</p></div></li>
-        <li><span class="no">3</span><div><h4>Turn on Developer mode</h4><p>Chrome will open to its extensions page. The switch is at the top right.</p></div></li>
+        <li><span class="no">3</span><div><h4>Open the extensions page</h4><p>Chrome opens a page with these last steps. Chrome doesn't let a script open its extensions page, so type <code>chrome://extensions</code> in the address bar and press Enter. Then turn on Developer mode with the switch at the top right.</p></div></li>
         <li><span class="no">4</span><div><h4>Click Load unpacked</h4><p>The command already copied the folder's location. Press Ctrl+V in the Folder box at the bottom of the window, then click Select Folder.</p></div></li>
         <li><span class="no">5</span><div><h4>Pin Rote to your toolbar</h4><p>${pin}</p></div></li>
       </ol>
@@ -416,9 +416,9 @@ ${nav}
       <div class="window">
         <header><div><h3>With the bridge</h3><p>Skip this unless you already use Claude Code or Codex. Windows only, and it counts against your Claude Code or Codex plan.</p></div></header>
         <h4 class="branch">First, install what it needs</h4>
-        <p>Install <a href="https://nodejs.org">Node</a>. Make sure <a href="https://docs.claude.com/en/docs/claude-code/overview">Claude Code</a> or <a href="https://github.com/openai/codex">Codex</a> is installed and signed in. Claude Code has to come from its own installer, because the bridge can't start a copy installed with npm.</p>
+        <p>Make sure <a href="https://docs.claude.com/en/docs/claude-code/overview">Claude Code</a> or <a href="https://github.com/openai/codex">Codex</a> is installed and signed in. Nothing else is needed, since the bridge runs in the PowerShell that comes with Windows. Claude Code has to come from its own installer, because the bridge can't start a copy installed with npm.</p>
         <h4 class="branch">If you installed with B</h4>
-        <p>Open a new PowerShell window so it can find Node. Then run the Rote and the AI bridge command from <a href="#b-commands">step 2 of B</a>. If Rote is already in Chrome, click the reload icon on its card afterwards.</p>
+        <p>Run the Rote and the AI bridge command from <a href="#b-commands">step 2 of B</a>. If Rote is already in Chrome, click the reload icon on its card afterwards.</p>
         <h4 class="branch">If you installed with A</h4>
         <ol class="steps">
           <li><span class="no">1</span><div><h4>Download the bridge</h4><p class="do"><a class="tk" href="/download-bridge">Download the bridge</a></p><p class="pick">Unzip it and put the folder somewhere you won't delete it, like Documents. The bridge runs from there.</p></div></li>
@@ -439,16 +439,16 @@ ${nav}
         <header><span class="letter" aria-hidden="true">A</span><div><h3>Replace the files</h3><p>If you installed by downloading the zip.</p></div></header>
         <ol class="steps">
           <li><span class="no">1</span><div><h4>Download the new version</h4><p class="do"><a class="tk" href="/download">Download Rote</a></p></div></li>
-          <li><span class="no">2</span><div><h4>Copy it over your old folder</h4><p>Unzip it and copy everything inside into your old Rote folder. Choose Replace if your computer asks. If you added the bridge this way too, do the same with the <a href="/download-bridge">new bridge download</a>.</p></div></li>
+          <li><span class="no">2</span><div><h4>Copy it over your old folder</h4><p>Unzip it and copy everything inside into your old Rote folder. Choose Replace if your computer asks. If you added the bridge this way too, do the same with the <a href="/download-bridge">new bridge download</a>, then run its setup command again.</p></div></li>
           <li><span class="no">3</span><div><h4>Reload Rote</h4><p>Go to chrome://extensions and click the reload icon on Rote's card.</p></div></li>
         </ol>
       </div>
       <div class="window">
-        <header><span class="letter" aria-hidden="true">B</span><div><h3>Run the command again</h3><p>If you installed with PowerShell.</p></div></header>
+        <header><span class="letter" aria-hidden="true">B</span><div><h3>Run the command again</h3><p>If you installed with PowerShell. It updates the bridge too if you have it.</p></div></header>
         <ol class="steps">
           <li><span class="no">1</span><div><h4>Open PowerShell</h4><p>Press the Windows key, type PowerShell and press Enter.</p></div></li>
-          <li><span class="no">2</span><div><h4>Run the same command</h4><p>Paste the one you used the first time from <a href="#b-commands">step 2 of B</a> and press Enter.</p></div></li>
-          <li><span class="no">3</span><div><h4>Reload Rote</h4><p>On the extensions page that opens, click the reload icon on Rote's card.</p></div></li>
+          <li><span class="no">2</span><div><h4>Run the same command</h4><p>Paste either command from <a href="#b-commands">step 2 of B</a> and press Enter. It tells you if you already have the newest version.</p></div></li>
+          <li><span class="no">3</span><div><h4>Reload Rote</h4><p>Chrome opens a page with this last step. Type chrome://extensions in the address bar, press Enter and click the reload icon on Rote's card.</p></div></li>
         </ol>
       </div>
     </div>
@@ -518,6 +518,44 @@ ${nav}
 <p>Reports go to a private issue tracker that only I can read, and I use them to fix the bug you reported. If you want one deleted, send me its report ID in a new report.</p>
 <h2>What Rote never collects</h2>
 <p>Rote has no analytics and no tracking. It won't store or fill in Social Security numbers, dates of birth, passwords or bank details.</p>
+</main>
+`);
+
+// The install script opens this page because Chrome won't open chrome://extensions from
+// a command line. There's no copy button for that address, because the clipboard already
+// holds the folder path the Load unpacked step needs.
+const nextCss = `${proseCss}
+  ol { padding-left: 1.4em; margin: 0 0 14px; }
+  li { margin: 0 0 10px; }
+  code { font-weight: 700; }
+`;
+const typeAddress = '<li>Click in the address bar at the top of this window, type <code>chrome://extensions</code> and press Enter. Chrome doesn\'t let a script or a link open that page for you.</li>';
+
+export const NEXT_LOAD_PAGE = shell('Finish installing Rote', 'The last steps of installing Rote in Chrome.', nextCss, `
+${nav}
+<main>
+<h1>Almost done</h1>
+<p>Rote is downloaded. Chrome needs you for the last few clicks.</p>
+<ol>
+${typeAddress}
+<li>Turn on Developer mode with the switch at the top right.</li>
+<li>Click Load unpacked at the top left. The install command copied the folder's location, so press Ctrl+V in the Folder box at the bottom of the window and click Select Folder.</li>
+<li>${pin}</li>
+</ol>
+<p>If Load unpacked isn't there, Developer mode is still off.</p>
+</main>
+`);
+
+export const NEXT_RELOAD_PAGE = shell('Finish updating Rote', 'The last step of updating Rote in Chrome.', nextCss, `
+${nav}
+<main>
+<h1>One more click</h1>
+<p>The new version of Rote is in the same folder as before. Chrome keeps running the old one until you reload it.</p>
+<ol>
+${typeAddress}
+<li>Find Rote's card and click its reload icon, the circular arrow.</li>
+</ol>
+<p>Your profile and saved answers stay as they were.</p>
 </main>
 `);
 

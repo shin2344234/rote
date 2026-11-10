@@ -3,13 +3,16 @@ import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-const HOST = path.resolve('bridge/host.mjs');
+const HOST = path.resolve('bridge/host.ps1');
 const FAKE_CODEX = path.resolve('tests/fixtures/fake-codex.mjs');
+const POWERSHELL = path.join(process.env.SystemRoot ?? 'C:/Windows', 'System32/WindowsPowerShell/v1.0/powershell.exe');
 
 // Speaks Chrome's native messaging framing to the host, which is a four byte length and then JSON.
-function callHost(message: Record<string, unknown>): Promise<any> {
+// It starts the host the way host.bat does, in the Windows PowerShell that ships with Windows.
+function callHost(message: Record<string, unknown>, env: Record<string, string> = {}): Promise<any> {
   return new Promise((resolve, reject) => {
-    const child = spawn(process.execPath, [HOST], { env: { ...process.env, CODEX_BIN: FAKE_CODEX, CLAUDE_BIN: 'no-such-claude-binary' }, stdio: ['pipe', 'pipe', 'inherit'] });
+    const args = ['-NoLogo', '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', HOST];
+    const child = spawn(POWERSHELL, args, { env: { ...process.env, CODEX_BIN: FAKE_CODEX, CLAUDE_BIN: 'no-such-claude-binary', ...env }, stdio: ['pipe', 'pipe', 'inherit'] });
     const chunks: Buffer[] = [];
     child.stdout.on('data', (chunk) => chunks.push(chunk));
     child.on('error', reject);
@@ -26,7 +29,7 @@ function callHost(message: Record<string, unknown>): Promise<any> {
 
 const ASK = { type: 'ask', engine: 'codex', system: 'Answer from the profile.', prompt: 'The questions.', schema: { type: 'object' } };
 
-describe('bridge host with Codex', () => {
+describe.skipIf(process.platform !== 'win32')('bridge host with Codex', () => {
   it('reports the Codex version on a ping', async () => {
     expect(await callHost({ type: 'ping', engine: 'codex' })).toEqual({ ok: true, version: 'codex-cli 9.9.9' });
   });
@@ -69,5 +72,29 @@ describe('bridge host with Codex', () => {
     expect(failed.error).toContain('not signed in');
     const garbled = await callHost({ ...ASK, prompt: 'GARBLE' });
     expect(garbled.error).toContain('Codex returned something other than JSON');
+  });
+
+  it('passes quotes, backslashes, spaces and non-ASCII text through unchanged', async () => {
+    const system = 'Say "hi" to C:\\path with spaces\\ and \\"this\\" é ✓';
+    const schema = { type: 'object', properties: { note: { type: 'string', description: 'a "quoted" \\ value' } }, required: ['note'] };
+    const reply = await callHost({ ...ASK, system, prompt: 'Line one\nline two', schema });
+    expect(reply.result.seen.stdin).toBe(`${system}\n\nLine one\nline two`);
+    expect(reply.result.seen.schema).toEqual(schema);
+  });
+
+  it('refuses a script shim that would run through cmd.exe', async () => {
+    const reply = await callHost({ type: 'ping', engine: 'codex' }, { CODEX_BIN: 'C:\\fake\\codex.cmd' });
+    expect(reply.ok).toBe(false);
+    expect(reply.error).toContain('can only start a program file');
+  });
+
+  it('says Claude Code is missing when it cannot start it', async () => {
+    const reply = await callHost({ type: 'ping', engine: 'claude' });
+    expect(reply.ok).toBe(false);
+    expect(reply.error).toContain('Could not start Claude Code at no-such-claude-binary');
+  });
+
+  it('rejects an unknown request', async () => {
+    expect(await callHost({ type: 'nope' })).toEqual({ ok: false, error: 'The bridge received an unknown request.' });
   });
 });

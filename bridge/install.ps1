@@ -1,6 +1,7 @@
 # Registers the bridge to Claude Code and Codex with Chrome for the current Windows user.
 # The extension shows the full command, with its own ID, under Profile and logs.
 # Run it once, then click Check again there. Pass -Uninstall to remove the registration.
+# The bridge runs in the Windows PowerShell that comes with Windows and needs nothing else.
 param(
   [string]$ExtensionId,
   [switch]$Uninstall
@@ -14,6 +15,7 @@ $hostName = 'com.resume_autofill.claude'
 $registryKey = "HKCU:\Software\Google\Chrome\NativeMessagingHosts\$hostName"
 $launcher = Join-Path $PSScriptRoot 'host.bat'
 $manifest = Join-Path $PSScriptRoot 'host-manifest.json'
+$hostScript = Join-Path $PSScriptRoot 'host.ps1'
 
 if ($Uninstall) {
   if (Test-Path $registryKey) { Remove-Item $registryKey }
@@ -22,12 +24,13 @@ if ($Uninstall) {
   return
 }
 
-$nodeCommand = Get-Command node -ErrorAction SilentlyContinue
-if (-not $nodeCommand) { throw 'The bridge needs Node. Install it from https://nodejs.org and run this again.' }
-$node = $nodeCommand.Source
+if (-not (Test-Path $hostScript)) { throw "host.ps1 is missing from $PSScriptRoot. Download rote-bridge again." }
+# A file unzipped from a download carries a mark that can make PowerShell ask before running it.
+Unblock-File $hostScript -ErrorAction SilentlyContinue
+$powershell = Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
 Set-Content -Path $launcher -Encoding ascii -Value @(
   '@echo off'
-  "`"$node`" `"%~dp0host.mjs`""
+  "`"$powershell`" -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File `"%~dp0host.ps1`""
 )
 
 $json = [ordered]@{

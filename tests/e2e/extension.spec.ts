@@ -1151,7 +1151,8 @@ test('guides the bridge setup, links to key pages and offers the OpenRouter sign
   const bridge = options.locator('#bridge-status');
   await expect(bridge).toContainText(/not set up on this PC yet|different copy of this extension|The bridge is set up/);
   await expect(options.locator('#bridge-command')).toHaveText(`powershell -ExecutionPolicy Bypass -File bridge\\install.ps1 -ExtensionId ${extensionId}`);
-  const ready = (await bridge.textContent())!.includes('The bridge is set up');
+  // The message for a bridge set up for another copy also starts with "The bridge is set up", so match the two missing states.
+  const ready = !/not set up on this PC yet|different copy of this extension/.test((await bridge.textContent())!);
   await expect(options.locator('#bridge-copy')).toBeVisible({ visible: !ready });
   if (ready) await expect(bridge).toContainText('Claude Code');
   await options.selectOption('#claude-mode', 'codex');

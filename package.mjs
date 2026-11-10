@@ -29,4 +29,4 @@ mkdirSync('release');
 // Source maps triple the download and Chrome does not need them.
 await write(`rote-${version}.zip`, (zip) => addFolder(zip, 'dist', '', (name) => !name.endsWith('.map')));
 // The generated launcher and manifest hold local paths, so only the two source files ship.
-await write(`rote-bridge-${version}.zip`, (zip) => addFolder(zip, 'bridge', 'bridge/', (name) => name === 'host.mjs' || name === 'install.ps1'));
+await write(`rote-bridge-${version}.zip`, (zip) => addFolder(zip, 'bridge', 'bridge/', (name) => name === 'host.ps1' || name === 'install.ps1'));

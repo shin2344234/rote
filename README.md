@@ -14,13 +14,15 @@ It'll be in the Chrome Web Store eventually. For now, install it from a release:
 2. Open `chrome://extensions` and turn on Developer mode.
 3. Click Load unpacked and pick the unzipped folder.
 
-Or let PowerShell do the download. This fetches the latest release, checks it against the checksum GitHub publishes, unpacks it to `%LOCALAPPDATA%\Rote\extension`, copies that path to the clipboard and opens `chrome://extensions`. Chrome does not let a script add an extension, so you still click Load unpacked and paste the path.
+Or let PowerShell do the download. This fetches the latest release, checks it against the checksum GitHub publishes, unpacks it to `%LOCALAPPDATA%\Rote\extension` and copies that path to the clipboard. Chrome does not let a script add an extension or open `chrome://extensions`, so the script opens a page on the Rote site with the last steps, in the Chrome profile that has Rote or else the one used last. You type `chrome://extensions`, click Load unpacked and paste the path.
 
 ```powershell
 irm https://raw.githubusercontent.com/shin2344234/rote/main/install.ps1 | iex
 ```
 
-That command runs a script straight from the internet. To read it first, download [`install.ps1`](install.ps1) and run it yourself. Run it again to update.
+That command runs a script straight from the internet. To read it first, download [`install.ps1`](install.ps1) and run it yourself.
+
+Run the same command again to update. It reads the installed version and stops if that is already the latest, so `-Force` is there to unpack again anyway. An update rewrites the files in place and removes ones the new release dropped. The folder stays the same, so Chrome keeps the extension ID and your saved profile, and you only click the reload icon on the Rote card. If the bridge is in the Rote folder, the update replaces and re-registers it too. The script refuses to write into a folder that holds anything other than an earlier copy of Rote.
 
 To update by hand, unzip the new release over the same folder and click the reload icon on the extension's card. Your profile and saved answers stay in the browser.
 
@@ -30,7 +32,7 @@ Install with either method above and stop there. Scanning and filling use no AI 
 
 ### With the bridge
 
-The bridge lets the AI review use the Claude Code or Codex already on your PC, under that tool's sign-in and plan. It needs Windows, Node, and Claude Code or Codex installed and signed in.
+The bridge lets the AI review use the Claude Code or Codex already on your PC, under that tool's sign-in and plan. It needs Windows and Claude Code or Codex installed and signed in. The bridge itself is a PowerShell script that runs in the Windows PowerShell 5.1 every Windows 10 and 11 PC has, so there is nothing else to install. Claude Code has to come from its native installer, since the bridge won't start the `claude.cmd` that npm installs. Codex from npm works, because its package carries a native `codex.exe`.
 
 If you use the PowerShell install, run this form of the command in place of the one above. It unpacks the bridge and registers it with Chrome for the current Windows user. If Rote is already loaded, click the reload icon on its card afterwards.
 
@@ -64,7 +66,7 @@ Open-ended questions in the Needs you list get a Draft reply with Claude button.
 
 SSN, date of birth and bank fields, file uploads, lone checkboxes and fields that already hold a value are never sent.
 
-Pick the connection under Profile and logs. An Anthropic API key bills your API account, and the key is stored unencrypted in this Chrome profile. Claude Code on this PC uses your Claude Code sign-in and counts against that plan. It needs Windows and Node, and one setup command run from the unzipped `rote-bridge` download, unless the install script already did that with `-WithBridge`.
+Pick the connection under Profile and logs. An Anthropic API key bills your API account, and the key is stored unencrypted in this Chrome profile. Claude Code on this PC uses your Claude Code sign-in and counts against that plan. It needs Windows and one setup command run from the unzipped `rote-bridge` download, unless the install script already did that with `-WithBridge`.
 
 When you pick Claude Code on this PC or Codex on this PC, the page checks the PC and says whether the bridge and each tool are there. If the bridge is missing, it shows the setup command with your extension's ID filled in and a button that copies it. Paste it into PowerShell, then click Check again. Running `bridge\install.ps1 -Uninstall` removes the registration.
 
