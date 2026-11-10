@@ -22,7 +22,7 @@ const base = `
   .sign { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 24px; padding-block: 16px; font-weight: 600; font-size: 17px; }
   .plate { background: var(--ink); color: var(--light); font: 400 30px/1 var(--display); padding: 6px 14px 5px; text-decoration: none; border-radius: 3px; margin-right: auto; }
   .plate:hover { background: #33373c; }
-  @media (max-width: 640px) { .sign { font-size: 16px; gap: 8px 16px; } .sign a:last-child { display: none; } }
+  @media (max-width: 640px) { .sign { font-size: 16px; gap: 8px 16px; } .sign a:last-child, .sign a.wide { display: none; } }
   @media (max-width: 360px) { .sign { font-size: 15px; gap: 8px 12px; } .plate { font-size: 26px; } }
   @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } *, *::before, *::after { transition: none !important; } }
 `;
@@ -46,6 +46,7 @@ ${body}
 const nav = `<nav class="wrap sign" aria-label="Main">
   <a class="plate" href="/">Rote</a>
   <a href="/#install">Install</a>
+  <a class="wide" href="/#update">Update</a>
   <a href="/#use">How to use it</a>
   <a href="/privacy">Privacy</a>
   <a href="https://github.com/shin2344234/rote">Source code</a>
@@ -115,7 +116,6 @@ const homeCss = `
   ol.steps .do { margin-top: 12px; }
   .cmd { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 14px; margin-top: 10px; background: var(--ink); color: var(--light); padding: 12px 14px; border-radius: 4px; }
   .cmd code { flex: 1 1 16em; font: 500 15px/1.45 ui-monospace, Consolas, monospace; overflow-wrap: anywhere; }
-  .after { max-width: 44em; margin: 48px 0 0; }
   .bridge { margin-top: clamp(64px, 8vw, 104px); }
   .bridge > h3 { font-size: clamp(2.6rem, 5vw, 4.2rem); }
   .note { max-width: 44em; margin: 36px 0 0; }
@@ -431,7 +431,29 @@ ${nav}
     </div>
     <p class="note">If you move the Rote folder or the bridge folder later, you'll need to set the bridge up again. Whichever way you connect, clicking Review missed sends your whole profile and saved answers to the provider you picked. With the bridge, that's Claude or Codex.</p>
   </div>
-  <p class="after">Updating later? If you used A, unzip the new download, copy everything in it over your old Rote folder and choose Replace. If you used B, run the same command again, the bridge one if that's what you used. Then click the reload icon on Rote's card on the extensions page. Don't click Load unpacked again. Your profile and saved answers only stick around if Rote keeps loading from the same folder.</p>
+  <div class="bridge" id="update">
+    <h3>Update Rote</h3>
+    <p class="intro">Rote doesn't update itself yet. You'll find your version on Rote's card at chrome://extensions and the newest one on the <a href="https://github.com/shin2344234/rote/releases/latest">releases page</a>.</p>
+    <div class="windows">
+      <div class="window">
+        <header><span class="letter" aria-hidden="true">A</span><div><h3>Replace the files</h3><p>If you installed by downloading the zip.</p></div></header>
+        <ol class="steps">
+          <li><span class="no">1</span><div><h4>Download the new version</h4><p class="do"><a class="tk" href="/download">Download Rote</a></p></div></li>
+          <li><span class="no">2</span><div><h4>Copy it over your old folder</h4><p>Unzip it and copy everything inside into your old Rote folder. Choose Replace if your computer asks. If you added the bridge this way too, do the same with the <a href="/download-bridge">new bridge download</a>.</p></div></li>
+          <li><span class="no">3</span><div><h4>Reload Rote</h4><p>Go to chrome://extensions and click the reload icon on Rote's card.</p></div></li>
+        </ol>
+      </div>
+      <div class="window">
+        <header><span class="letter" aria-hidden="true">B</span><div><h3>Run the command again</h3><p>If you installed with PowerShell.</p></div></header>
+        <ol class="steps">
+          <li><span class="no">1</span><div><h4>Open PowerShell</h4><p>Press the Windows key, type PowerShell and press Enter.</p></div></li>
+          <li><span class="no">2</span><div><h4>Run the same command</h4><p>Paste the one you used the first time from <a href="#b-commands">step 2 of B</a> and press Enter.</p></div></li>
+          <li><span class="no">3</span><div><h4>Reload Rote</h4><p>On the extensions page that opens, click the reload icon on Rote's card.</p></div></li>
+        </ol>
+      </div>
+    </div>
+    <p class="note">You don't need Load unpacked again. Don't remove Rote from Chrome or load it from a different folder, or you'll end up with an empty Rote. Your profile and saved answers are tied to that folder.</p>
+  </div>
 </div></section>
 
 <section id="use"><div class="wrap">
