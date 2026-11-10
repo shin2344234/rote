@@ -402,8 +402,17 @@ function initBugReport(): void {
     version: chrome.runtime.getManifest().version,
     browser: navigator.userAgent,
   });
+  // Send uses the report the person read, so nothing goes out that the preview didn't show.
+  let previewed: Report | null = null;
+  const discardPreview = (): void => {
+    previewed = null;
+    view.hidden = true;
+  };
+  text.addEventListener('input', discardPreview);
+  contact.addEventListener('input', discardPreview);
   byId('bug-preview').addEventListener('click', async () => {
-    view.textContent = previewText(await build());
+    previewed = await build();
+    view.textContent = previewText(previewed);
     view.hidden = false;
   });
   send.addEventListener('click', async () => {
@@ -411,15 +420,19 @@ function initBugReport(): void {
       status.textContent = 'Describe what went wrong before sending.';
       return;
     }
+    if (!previewed) {
+      status.textContent = 'Click Preview report and read it before sending.';
+      return;
+    }
     send.disabled = true;
     status.textContent = 'Sending...';
     try {
-      const report = await build();
+      const report = previewed;
       const id = await sendReport(report);
       log.info('report.sent', { id, logEntries: report.logLines.length });
       status.textContent = `Sent. Your report ID is ${id}.`;
       text.value = '';
-      view.hidden = true;
+      discardPreview();
     } catch (error) {
       log.warn('report.failed', errorData(error));
       status.textContent = (error as Error).message;

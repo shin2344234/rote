@@ -1114,6 +1114,10 @@ test('sends a bug report the user can read first, with no personal values in it'
   expect(posts).toHaveLength(0);
 
   await options.fill('#bug-text', 'The shift list stayed empty after Fill form.');
+  await options.click('#bug-send');
+  await expect(options.locator('#bug-status')).toHaveText('Click Preview report and read it before sending.');
+  expect(posts).toHaveLength(0);
+
   await options.click('#bug-preview');
   const preview = options.locator('#bug-view');
   await expect(preview).toBeVisible();

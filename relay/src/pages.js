@@ -348,7 +348,7 @@ ${nav}
       <h1>Stop retyping your resume into every job application.</h1>
       <p class="lede">Rote is a free Chrome extension that reads your resume and fills out the application for you on pretty much any job site. You look it over and hit submit yourself.</p>
       <p class="actions"><a class="tk" href="#install">Install Rote free</a> <a href="#use">How to use it</a></p>
-      <p class="aihelp">You don't need AI to use it. If you want help with the questions Rote can't answer, you can connect Claude Code or Codex through the bridge, use an API key, or run a model on your own computer. Whichever you pick gets your whole profile and saved answers when you click the review button. <a href="#bridge">Here's how to set it up</a>.</p>
+      <p class="aihelp">AI is optional. For the questions Rote can't answer, you can connect Claude Code or Codex through the bridge, use an API key, or run a model on your own computer. Whichever you pick gets your whole profile and saved answers when you ask it for help. <a href="#bridge">Here's how to set it up</a>.</p>
     </div>
     <figure class="clip">
       <figcaption class="sr">An example job application. Rote fills each field in turn, outlines confident answers in green and answers to check in amber, leaves the open question for the applicant, and does not click Submit.</figcaption>
@@ -377,7 +377,7 @@ ${nav}
 
 <section id="install"><div class="wrap">
   <h2>Install it</h2>
-  <p class="intro">You need Chrome on a computer. It won't work on a phone. Pick A or B below, since you end up with the same thing either way. It'll be in the Chrome Web Store eventually, and then you can skip all of this.</p>
+  <p class="intro">You need Chrome on a computer. It won't work on a phone. Pick A or B. You end up with the same thing either way. It'll be in the Chrome Web Store eventually, and then you can skip all of this.</p>
   <div class="windows">
     <div class="window">
       <header><span class="letter" aria-hidden="true">A</span><div><h3>Download it</h3><p>Windows, Mac or Linux. No typing commands.</p></div></header>
@@ -394,7 +394,7 @@ ${nav}
       <header><span class="letter" aria-hidden="true">B</span><div><h3>Paste one command</h3><p>Windows only. The command does the downloading for you.</p></div></header>
       <ol class="steps">
         <li><span class="no">1</span><div><h4>Open PowerShell</h4><p>Press the Windows key, type PowerShell and press Enter.</p></div></li>
-        <li id="b-commands"><span class="no">2</span><div><h4>Pick one command, paste it and press Enter</h4><p>To paste, click in the PowerShell window and press Ctrl+V.</p><p class="pick"><b>Rote only.</b> This doesn't install the AI bridge.</p><div class="cmd"><code>${command}</code><button class="tk small" type="button" data-copy="${command}">Copy</button></div><p class="pick"><b>Rote and the AI bridge.</b> This installs both. <a href="#bridge">Install what the bridge needs</a> first.</p><div class="cmd"><code>${bridgeCommand}</code><button class="tk small" type="button" data-copy="${bridgeCommand}">Copy</button></div><p class="pick">Either one runs a script from the internet, so <a href="https://github.com/shin2344234/rote/blob/main/install.ps1">read it first</a> if that makes you nervous. It checks the download against the checksum on GitHub.</p></div></li>
+        <li id="b-commands"><span class="no">2</span><div><h4>Pick one command, paste it and press Enter</h4><p>To paste, click in the PowerShell window and press Ctrl+V.</p><p class="pick"><b>Rote only.</b> This doesn't install the AI bridge.</p><div class="cmd"><code>${command}</code><button class="tk small" type="button" data-copy="${command}">Copy</button></div><p class="pick"><b>Rote and the AI bridge.</b> This installs both. <a href="#bridge">Install what the bridge needs</a> first.</p><div class="cmd"><code>${bridgeCommand}</code><button class="tk small" type="button" data-copy="${bridgeCommand}">Copy</button></div><p class="pick">Either one runs a script from the internet, so <a href="https://github.com/shin2344234/rote/blob/main/install.ps1">read it first</a> if that makes you nervous. It stops if the download doesn't match the file on GitHub.</p></div></li>
         <li><span class="no">3</span><div><h4>Turn on Developer mode</h4><p>Chrome will open to its extensions page. The switch is at the top right.</p></div></li>
         <li><span class="no">4</span><div><h4>Click Load unpacked</h4><p>The command already copied the folder's location. Press Ctrl+V in the Folder box at the bottom of the window, then click Select Folder.</p></div></li>
         <li><span class="no">5</span><div><h4>Pin Rote to your toolbar</h4><p>${pin}</p></div></li>
@@ -406,16 +406,17 @@ ${nav}
     <p class="intro">You don't need it. Rote scans and fills forms on its own. AI only comes in if you want help with the questions Rote can't answer. You can use an API key, a model running on your computer, or the bridge, which is a small program that lets Rote use the Claude Code or Codex you already have on your PC.</p>
     <div class="windows">
       <div class="window">
-        <header><div><h3>Without the bridge</h3><p>Works on any computer. Nothing else to install.</p></div></header>
+        <header><div><h3>Without the bridge</h3><p>Works on any computer with Chrome. For an API key or a local model. If you don't want AI, you're done after A or B.</p></div></header>
         <ol class="steps">
-          <li><span class="no">1</span><div><h4>Finish A or B</h4><p>Once Rote is pinned to your toolbar, you're done. Scanning and filling don't use AI.</p></div></li>
-          <li><span class="no">2</span><div><h4>Want AI help with an API key or local model?</h4><p>Click the Rote icon, then Profile and logs. Under AI review, change Connection to Anthropic API key, OpenAI API key, or Other provider or local model. If you use an API key, that provider bills you. A local model like Ollama doesn't need a key, and your details stay on your computer.</p></div></li>
+          <li><span class="no">1</span><div><h4>Pick your connection</h4><p>Click the Rote icon, then Profile and logs. Under AI review, open Connection and choose Anthropic API key or OpenAI API key. For anything else, choose Other provider or local model, then pick the provider.</p></div></li>
+          <li><span class="no">2</span><div><h4>Add your key or start your model</h4><p>Paste an API key into its box. That provider bills you for what you use. A local model needs no key and your details stay on your computer, but it has to be running. Ollama also needs its OLLAMA_ORIGINS setting changed to chrome-extension://* and a restart. LM Studio needs CORS turned on in its server settings.</p></div></li>
+          <li><span class="no">3</span><div><h4>Test it and save</h4><p>Click Test connection, pick a model and click Save. Changing Connection doesn't turn anything on until you do.</p></div></li>
         </ol>
       </div>
       <div class="window">
-        <header><div><h3>With the bridge</h3><p>Skip this unless you already use Claude Code or Codex. Windows only, and it counts against that plan.</p></div></header>
+        <header><div><h3>With the bridge</h3><p>Skip this unless you already use Claude Code or Codex. Windows only, and it counts against your Claude Code or Codex plan.</p></div></header>
         <h4 class="branch">First, install what it needs</h4>
-        <p>Install <a href="https://nodejs.org">Node</a>. Then install <a href="https://docs.claude.com/en/docs/claude-code/overview">Claude Code</a> or <a href="https://github.com/openai/codex">Codex</a> and sign in to it.</p>
+        <p>Install <a href="https://nodejs.org">Node</a>. Make sure <a href="https://docs.claude.com/en/docs/claude-code/overview">Claude Code</a> or <a href="https://github.com/openai/codex">Codex</a> is installed and signed in. Claude Code has to come from its own installer, because the bridge can't start a copy installed with npm.</p>
         <h4 class="branch">If you installed with B</h4>
         <p>Open a new PowerShell window so it can find Node. Then run the Rote and the AI bridge command from <a href="#b-commands">step 2 of B</a>. If Rote is already in Chrome, click the reload icon on its card afterwards.</p>
         <h4 class="branch">If you installed with A</h4>
@@ -428,7 +429,7 @@ ${nav}
         <p>Under AI review in Profile and logs, set Connection to Claude Code on this PC or Codex on this PC and click Check again. When the page says Ready, click Save.</p>
       </div>
     </div>
-    <p class="note">If you move the Rote folder or the bridge folder later, you'll need to set the bridge up again. Before you use any AI option, know that clicking the review button sends your whole profile and saved answers to the provider you picked. With the bridge, that's Claude or Codex.</p>
+    <p class="note">If you move the Rote folder or the bridge folder later, you'll need to set the bridge up again. Whichever way you connect, clicking Review missed sends your whole profile and saved answers to the provider you picked. With the bridge, that's Claude or Codex.</p>
   </div>
   <p class="after">Updating later? If you used A, unzip the new download, copy everything in it over your old Rote folder and choose Replace. If you used B, run the same command again, the bridge one if that's what you used. Then click the reload icon on Rote's card on the extensions page. Don't click Load unpacked again. Your profile and saved answers only stick around if Rote keeps loading from the same folder.</p>
 </div></section>
@@ -437,10 +438,10 @@ ${nav}
   <h2>Use it</h2>
   <p class="intro">Add your resume once. After that, it's a couple of clicks per application, plus whatever Rote couldn't answer.</p>
 <ol class="roll">
-  <li><b>1</b><h3>Add your resume</h3><p>Click the Rote icon, then Profile and logs. Add a PDF, Word or text resume and fix anything it got wrong. Fill in the stuff a resume doesn't cover, then click Save profile.</p><p>It all stays in your browser.</p></li>
-  <li><b>2</b><h3>Scan the page</h3><p>Open a job application on any site. Click the Rote icon to open the side panel, then click Scan page.</p><p>The scan runs in your browser and doesn't use AI.</p></li>
-  <li><b>3</b><h3>Click Fill form</h3><p>Rote attaches your resume and fills in what it knows. Green means it's confident. Amber means double-check it. You can undo anything it filled.</p><p>Your details and resume go to the job site at this point, same as if you'd typed them in.</p></li>
-  <li><b>4</b><h3>Finish and submit</h3><p>The side panel lists what's left for you to do. If the form has more pages, scan again on each one.</p><p>Nothing goes to the employer until you click submit yourself.</p></li>
+  <li><b>1</b><h3>Add your resume</h3><p>Click the Rote icon, then Profile and logs. Add your resume as a PDF, a .docx Word file or a text file and fix anything it got wrong. Fill in the stuff a resume doesn't cover, then click Save profile.</p><p>It all stays in your browser.</p></li>
+  <li><b>2</b><h3>Scan the page</h3><p>Open a job application on any site. Click the Rote icon to open the side panel, then click Scan page.</p><p>The scan runs in your browser.</p></li>
+  <li><b>3</b><h3>Click Fill form</h3><p>Rote attaches your resume and fills in what it knows. Green means it's confident. Amber means double-check it. Undo clears what it filled, and the panel tells you if a custom control needs resetting by hand.</p><p>Your details are on the job site's form now, and some sites save them or upload your resume right away, same as if you'd typed them in.</p></li>
+  <li><b>4</b><h3>Finish and submit</h3><p>The side panel lists what's left for you to do. If the form has more pages, scan again on each one. If you set up AI, Review missed fills in what it can. Its answers go straight onto the form, so check each one.</p><p>Rote never sends the application. You click submit.</p></li>
 </ol>
 </div></section>
 
@@ -455,8 +456,8 @@ ${nav}
   </ul>
   </div>
   <div class="data">
-    <div><h3>Where your details go</h3><p>Your resume, profile and saved answers stay in your browser. There's no account, and I don't have a server holding any of it. When Rote fills out a form, your details go to that job site, same as if you'd typed them yourself. <a href="/privacy">Read the privacy page</a>.</p></div>
-    <div><h3>AI is off unless you turn it on</h3><p>Rote scans and fills without it. If you turn it on, it takes a shot at the questions Rote missed, using Claude, Codex, another provider or a model on your own computer. Every time you click the review button, your whole profile and saved answers go to whichever one you picked.</p></div>
+    <div><h3>Where your details go</h3><p>Your resume, profile and saved answers stay in your browser. There's no account, and I don't have a server holding any of it. When Rote fills out a form, your details go to that job site. <a href="/privacy">Read the privacy page</a>.</p></div>
+    <div><h3>AI is off unless you turn it on</h3><p>If you turn it on, it takes a shot at the questions Rote missed, using Claude, Codex, another provider or a model on your own computer. Every time you click Review missed, your whole profile and saved answers go to whichever one you picked.</p></div>
   </div>
 </div></section>
 
@@ -467,7 +468,7 @@ ${nav}
     <a class="tk" href="https://buymeacoffee.com/SethWalker234">Buy me a coffee</a>
   </div>
   <footer>
-    <span>Found a bug? Click Report a bug in Rote's side panel. You'll see exactly what gets sent before it goes.</span>
+    <span>Found a bug? Click Report a bug in Rote's side panel. Preview report shows exactly what gets sent.</span>
     <a href="/privacy">Privacy</a>
     <a href="https://github.com/shin2344234/rote">Source code</a>
   </footer>
@@ -490,7 +491,7 @@ ${nav}
 <h2>What leaves your browser</h2>
 <p>When Rote fills out a form, your details go to that job site, same as if you'd typed them. If it attaches your resume, that gets uploaded there too.</p>
 <p>AI review is off until you turn it on. When you click its button, your whole profile, your saved answers and the unanswered questions go to whichever AI provider you picked. If you picked a model on your own computer, they stay on your computer.</p>
-<p>A bug report only gets sent when you click Send report. It has your description, the extension and browser versions, the host name of the page, which AI connection and model you use, and Rote's log. The log has form field labels, field types and match scores. Rote strips out anything you typed and anything from your resume before the report leaves your browser. I only get a contact address if you type one in.</p>
+<p>A bug report only gets sent when you click Send report. It has your description, the extension and browser versions, the host name of the page, which AI connection and model you use, and Rote's log. The log has form field labels, field types, match scores and the address of each page you scanned, so a report can show which job postings you opened. Rote strips out your form answers and anything from your resume before the report leaves your browser. I only get a contact address if you type one in.</p>
 <h2>What happens to a report</h2>
 <p>Reports go to a private issue tracker that only I can read, and I use them to fix the bug you reported. If you want one deleted, send me its report ID in a new report.</p>
 <h2>What Rote never collects</h2>
