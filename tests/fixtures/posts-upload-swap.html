@@ -1,0 +1,20 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Form whose iframe is replaced after upload</title>
+<h1>Careers</h1>
+<div id="slot"><iframe id="form" src="posts-upload.html?late=1&swap=1&quiet=1" width="600" height="400"></iframe></div>
+<script>
+  // Some sites drop the form's iframe after the upload and insert a new one, so no unload happens in it.
+  addEventListener('message', (event) => {
+    if (!event.data?.swap) return;
+    document.getElementById('form').remove();
+    setTimeout(() => {
+      const frame = document.createElement('iframe');
+      frame.id = 'form';
+      frame.width = '600';
+      frame.height = '400';
+      frame.src = `posts-upload.html?${event.data.swap}`;
+      document.getElementById('slot').append(frame);
+    }, 1000);
+  });
+</script>

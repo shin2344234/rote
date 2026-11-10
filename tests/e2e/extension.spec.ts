@@ -317,7 +317,34 @@ test('uploads first, then fills the rebuilt form without overwriting what the si
   await panel.close();
 });
 
-test('fills again when a late resume parse wipes the form, except fields the user edited', async ({ shared: context, extensionId }) => {
+for (const { page, name } of [
+  { page: 'posts-upload.html', name: '' },
+  { page: 'posts-upload.html?late=1', name: ' late' },
+  { page: 'posts-upload-frame.html', name: ' late inside an iframe' },
+  { page: 'posts-upload.html?late=1&quiet=1', name: ' and never names the file' },
+  { page: 'posts-upload-swap.html', name: ' by swapping in a new iframe' },
+]) {
+  test(`fills the new page when the upload reloads it${name}, and does not upload again`, async ({ shared: context, extensionId }) => {
+    const { target, panel } = await openPanelFor(context, extensionId, `${BASE}/${page}`);
+    const framed = page.includes('frame') || page.includes('swap');
+    const form = framed ? target.frameLocator('#form') : target.locator(':root');
+    await scanAndFill(panel);
+    await expect(form.locator('body')).toHaveAttribute('data-reloaded', '1', { timeout: 10000 });
+    await expect(form.locator('#email')).toHaveValue(EMAIL, { timeout: 15000 });
+    await expect(form.locator('#city')).not.toHaveValue('');
+    await expect(form.locator('#first')).toHaveValue('SiteParsedName');
+
+    await panel.click('#scan');
+    await expect(panel.locator('.row', { hasText: 'Upload your resume' })).toContainText('Has value');
+    await expect(panel.locator('#fill')).toBeDisabled();
+    const formUrl = framed ? target.frames().find((frame) => frame !== target.mainFrame())!.url() : target.url();
+    expect(new URL(formUrl).searchParams.get('uploaded')).toBe('1');
+    await target.close();
+    await panel.close();
+  });
+}
+
+test('fills again when a late resume parse wipes the form, except fields the user edited',async ({ shared: context, extensionId }) => {
   const { target, panel } = await openPanelFor(context, extensionId, `${BASE}/late-parse.html`);
   await scanAndFill(panel);
   await expect(target.locator('#email')).toHaveValue(EMAIL);

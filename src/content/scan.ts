@@ -110,6 +110,20 @@ function isStyledHeading(el: Element): boolean {
   return text.length > 0 && text.length <= 60;
 }
 
+// After a server-side upload, iCIMS shows the stored file as text beside an empty input.
+// A name directly before the extension keeps hints like "Accepted: .pdf, .docx" from counting.
+const ATTACHED_FILE = /[\w)-]\.(pdf|docx?|rtf|odt|txt)\b/i;
+
+function showsAttachedFile(input: HTMLInputElement): boolean {
+  let node: HTMLElement | null = input.parentElement;
+  for (let depth = 0; node && depth < 4; depth++, node = node.parentElement) {
+    const text = node.innerText ?? '';
+    if (text.length > 800) return false;
+    if (ATTACHED_FILE.test(text)) return true;
+  }
+  return false;
+}
+
 export function sectionOf(el: Element): string {
   const heading = 'h1,h2,h3,h4,h5,h6,legend,[role=heading]';
   let node: Element | null = el;
@@ -354,7 +368,7 @@ export function scanFrame(frameId: number): ScanResult {
       if (el.type === 'file') {
         if (el.disabled) { skip('disabled'); continue; }
         fileInputs.push(el);
-        add(el, 'file', { hasValue: (el.files?.length ?? 0) > 0 });
+        add(el, 'file', { hasValue: (el.files?.length ?? 0) > 0 || showsAttachedFile(el) });
         continue;
       }
       if (el.disabled || el.readOnly) { skip('disabled or read-only'); continue; }

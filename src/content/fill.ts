@@ -15,6 +15,8 @@ const undoStack: { fieldId: string; undo: (() => void | Promise<void>) | null }[
 const highlighted = new Map<HTMLElement, string>();
 // Lives in the page, so a reload forgets it and a form that rebuilds its file input does not.
 let sentFile: { id: string; name: string; href: string; input?: HTMLInputElement; shown: boolean } | null = null;
+// iCIMS and similar forms post the resume to their server as soon as it is attached and come back as a new page.
+let leaving = false;
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -465,6 +467,8 @@ export function uploadFile(fieldId: string, payload: FilePayload, mark: 'ok' | '
   const file = new File([bytes], payload.name, { type: payload.type, lastModified: Date.now() });
   const transfer = new DataTransfer();
   transfer.items.add(file);
+  leaving = false;
+  addEventListener('beforeunload', () => (leaving = true), { once: true });
 
   if (handle.dropzone) {
     for (const type of ['dragenter', 'dragover', 'drop']) {
@@ -513,7 +517,7 @@ export function sentFileId(): string {
 }
 
 // Waits for the page to stop changing, so forms that parse an upload can finish first.
-export function waitForSettle(quietMs = 600, maxMs = 6000): Promise<{ waited: number; timedOut: boolean }> {
+export function waitForSettle(quietMs = 600, maxMs = 6000): Promise<{ waited: number; timedOut: boolean; leaving: boolean }> {
   const started = Date.now();
   return new Promise((resolve) => {
     let quietTimer = 0;
@@ -522,7 +526,7 @@ export function waitForSettle(quietMs = 600, maxMs = 6000): Promise<{ waited: nu
       clearTimeout(quietTimer);
       clearTimeout(maxTimer);
       pageShowsSentFile();
-      resolve({ waited: Date.now() - started, timedOut });
+      resolve({ waited: Date.now() - started, timedOut, leaving });
     };
     const arm = () => {
       clearTimeout(quietTimer);

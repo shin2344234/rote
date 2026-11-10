@@ -74,6 +74,7 @@ async function scanFrames(): Promise<void> {
   const perFrame = await Promise.all(frames.map((frameId) => send<ScannedField[]>(frameId, { type: 'scan', runId, frameId })));
   fields = perFrame.flatMap((list) => list ?? []);
   rows = buildPlan(fields, { profile: await getProfile(), bank: await listAnswers(), resumeName: selectedResume()?.name });
+  markPostedUpload();
   log.info('scan.done', { frames: frames.length, fields: fields.length, statuses: countBy(rows.map((row) => row.status)) });
   logRows();
 }
@@ -150,6 +151,21 @@ function toBase64(buffer: ArrayBuffer): string {
   return btoa(binary);
 }
 
+// Pages that reloaded after taking the resume, by tab and frame address, with the resume sent.
+// The site keeps the file on its server, and the new page may show it in a way the scan can't read.
+const postedUploads = new Map<string, string>();
+const uploadKey = (row: PlanRow) => `${tabId}|${fieldFor(row)?.frameUrl ?? ''}`;
+// The upload from the latest Fill, for a reload that comes only after the fill is done.
+let lastUpload: { frameId: number; key: string; id: string } | null = null;
+let uploadReloaded = false;
+
+function markPostedUpload(): void {
+  const row = rows.find((candidate) => candidate.key === 'resumeUpload' && (candidate.status === 'ready' || candidate.status === 'low'));
+  const resume = selectedResume();
+  if (!row || !resume || postedUploads.get(uploadKey(row)) !== resume.id) return;
+  Object.assign(row, { status: 'existing', reason: 'Sent earlier. The site kept it and reloaded the page.' });
+}
+
 async function upload(): Promise<FillResult | undefined> {
   const row = rows.find((candidate) => candidate.key === 'resumeUpload' && (candidate.status === 'ready' || candidate.status === 'low'));
   const resume = selectedResume();
@@ -168,10 +184,85 @@ async function upload(): Promise<FillResult | undefined> {
   };
   const result = await send<FillResult>(row.frameId, request);
   if (!result) return undefined;
+  if (result.ok) lastUpload = { frameId: row.frameId, key: uploadKey(row), id: resume.id };
   // Many forms parse the file and rewrite themselves, so the page has to settle and be read again.
-  const settled = await Promise.all(frames.map((frameId) => send(frameId, { type: 'settle', runId })));
+  const settled = await Promise.all(frames.map((frameId) => send<{ leaving?: boolean }>(frameId, { type: 'settle', runId })));
   log.info('upload.settled', { ok: result.ok, detail: result.detail, settled });
+  // The frame that reloads is often not the top page (iCIMS keeps its form in an iframe). A frame that
+  // stopped answering may have been swapped for a new one, which fires no beforeunload.
+  const leaving = frames.filter((_, index) => settled[index]?.leaving);
+  const silent = frames.filter((frameId, index) => !settled[index] && !leaving.includes(frameId));
+  if (!silent.includes(row.frameId) && !leaving.includes(row.frameId)) silent.push(row.frameId);
+  const states = await pageStates(silent);
+  leaving.push(...silent.filter((_, index) => states[index] !== 'old'));
+  if (leaving.length) {
+    if (leaving.includes(row.frameId) || leaving.includes(0)) postedUploads.set(uploadKey(row), resume.id);
+    setNotice('The page is reloading with your resume. Rote fills it once it loads.');
+    render();
+    const loaded = await waitForNewPage(leaving);
+    log.info('upload.pageReloaded', { frames: leaving, loaded });
+    uploadReloaded = true;
+    setNotice('');
+    return { ...result, detail: 'attached; the page reloaded with its own reading of the resume' };
+  }
   return result;
+}
+
+// Tells whether a scanned frame still holds the same document. Frame ids survive navigation, so
+// 'new' means another document has finished loading in that frame. 'gone' means the frame was removed.
+type PageState = 'old' | 'new' | 'loading' | 'gone';
+
+async function pageStates(frameIds: number[]): Promise<PageState[]> {
+  try {
+    const found = await chrome.scripting.executeScript({
+      target: { tabId, allFrames: true },
+      func: () => ((globalThis as { __resumeAutofillLoaded?: boolean }).__resumeAutofillLoaded ? 'old' : document.readyState === 'complete' ? 'new' : 'loading'),
+    });
+    const byFrame = new Map(found.map((result) => [result.frameId, result.result as PageState]));
+    return frameIds.map((frameId) => byFrame.get(frameId) ?? 'gone');
+  } catch {
+    return frameIds.map(() => 'loading');
+  }
+}
+
+// A server-side resume parse can take a while, so this waits well past a normal page load.
+async function waitForNewPage(frameIds: number[], maxMs = 60000): Promise<boolean> {
+  const deadline = Date.now() + maxMs;
+  while (Date.now() < deadline) {
+    const states = await pageStates(frameIds);
+    // A removed frame may have a replacement that is still loading, and the tab counts every frame.
+    const tab = await chrome.tabs.get(tabId).catch(() => undefined);
+    if (states.every((state) => state === 'new' || state === 'gone') && tab?.status !== 'loading') return true;
+    await new Promise((resolve) => setTimeout(resolve, 500));
+  }
+  return false;
+}
+
+// Some sites remove the form and insert the new one a moment later, with nothing loading in between.
+// Scans again until a field the old page had is back, or gives up after maxMs.
+async function rescanUntilBack(keep: (row: PlanRow) => boolean, isCurrent: () => boolean, maxMs = 20000): Promise<void> {
+  const wanted = new Set(rows.filter((row) => row.key && row.kind !== 'file').map((row) => row.key));
+  const deadline = Date.now() + maxMs;
+  for (;;) {
+    await rescanKeeping(keep);
+    if (!wanted.size || rows.some((row) => wanted.has(row.key)) || Date.now() > deadline || !isCurrent()) break;
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+  }
+  log.info('rescan.untilBack', { wanted: wanted.size, found: rows.filter((row) => wanted.has(row.key)).length });
+}
+
+// A frame went away under the fill, usually a form posting the resume late. Fills the new page instead.
+async function refillNewPage(token: number, frameIds: number[]): Promise<boolean> {
+  if (!(await waitForNewPage(frameIds)) || token !== watchToken) return false;
+  if (lastUpload && (frameIds.includes(lastUpload.frameId) || frameIds.includes(0))) postedUploads.set(lastUpload.key, lastUpload.id);
+  await rescanUntilBack((row) => Boolean(row.claude), () => token === watchToken);
+  if (token !== watchToken) return false;
+  const results = await fillRows(rows.filter((row) => FILLABLE.has(row.status) && row.kind !== 'file' && !row.result?.ok));
+  log.info('watch.refilledNewPage', { attempted: results.length, succeeded: results.filter((result) => result.ok).length });
+  setNotice('The page reloaded after Fill and dropped what was filled. Rote filled the new page.');
+  updateButtons();
+  render();
+  return true;
 }
 
 async function fillRows(targets: PlanRow[]): Promise<FillResult[]> {
@@ -231,6 +322,12 @@ async function watchFilled(duration: number): Promise<void> {
     }));
     if (token !== watchToken) return;
     const answered = replies.filter((reply) => reply?.lost);
+    const silent = replies.filter((reply) => reply && !reply.lost).map((reply) => reply!.frameId);
+    if (silent.length) {
+      const states = await pageStates(silent);
+      const changed = silent.filter((_, index) => states[index] !== 'old');
+      if (changed.length && ++restores <= MAX_RESTORES && (await refillNewPage(token, changed))) continue;
+    }
     if (!answered.length) return;
     const lost = filled.filter((row) => answered.some((reply) => reply!.frameId === row.frameId && reply!.lost!.includes(row.fieldId)));
     if (!lost.length) continue;
@@ -291,9 +388,12 @@ async function addMissingRows(): Promise<string[]> {
 async function fill(): Promise<void> {
   watchToken++;
   log.info('fill.start', { planned: countBy(rows.map((row) => row.status)) });
+  lastUpload = null;
+  uploadReloaded = false;
   const uploadResult = await upload();
   const uploadRowKey = uploadResult && 'resumeUpload';
-  if (uploadResult) await rescanKeeping((row) => Boolean(row.claude));
+  if (uploadResult && uploadReloaded) await rescanUntilBack((row) => Boolean(row.claude), () => true);
+  else if (uploadResult) await rescanKeeping((row) => Boolean(row.claude));
 
   const results = await fillRows(rows.filter((row) => FILLABLE.has(row.status) && row.kind !== 'file' && !row.result?.ok));
   if (uploadRowKey) {

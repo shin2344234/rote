@@ -1,0 +1,36 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Form that posts the upload</title>
+<form id="form">
+  <h2>Resume</h2>
+  <div id="resume-block">
+    <label for="file">Upload your resume (Max size: 5 MB)</label><input id="file" type="file">
+    <span id="stored"></span>
+  </div>
+  <label for="first">First name</label><input id="first">
+  <label for="last">Last name</label><input id="last">
+  <label for="email">Email</label><input id="email">
+  <label for="city">City</label><input id="city">
+</form>
+<script>
+  // Imitates iCIMS, which posts the resume to its server on attach and returns a new page
+  // with the file shown as text and a few fields parsed from it.
+  const params = new URLSearchParams(location.search);
+  // quiet: the new page confirms the upload without naming the file.
+  // swap: the parent page replaces this iframe instead of it reloading.
+  if (params.has('uploaded')) {
+    document.getElementById('stored').textContent = params.has('quiet') ? 'Resume received' : 'Jordan_Avery_Resume.pdf';
+    document.getElementById('first').value = 'SiteParsedName';
+    document.body.dataset.reloaded = String(Number(params.get('uploaded')));
+  }
+  document.getElementById('file').addEventListener('change', () => {
+    const next = new URLSearchParams(location.search);
+    next.set('uploaded', String(Number(next.get('uploaded') ?? 0) + 1));
+    const go = () => {
+      if (params.has('swap')) parent.postMessage({ swap: next.toString() }, '*');
+      else location.search = next.toString();
+    };
+    if (params.has('late')) setTimeout(go, 1500);
+    else go();
+  });
+</script>
