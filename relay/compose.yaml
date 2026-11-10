@@ -3,14 +3,7 @@
 services:
   relay:
     build: .
-    # Left alone, compose builds the image from this folder. To follow the published image
-    # instead, set IMAGE_NAME=ghcr.io/shin2344234/rote-relay:latest and PULL_POLICY=always
-    # in .env. GitHub Actions publishes it on every relay change to main, and a Watchtower
-    # started with WATCHTOWER_LABEL_ENABLE=true swaps it in because of the label below.
-    image: ${IMAGE_NAME:-rote-relay:local}
-    pull_policy: ${PULL_POLICY:-missing}
-    labels:
-      com.centurylinklabs.watchtower.enable: "true"
+    image: rote-relay:local
     container_name: rote-relay
     restart: unless-stopped
     # Holds GITHUB_TOKEN and GITHUB_REPO. The file stays on the host and is never committed.
