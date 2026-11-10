@@ -33,12 +33,22 @@ Set-Content -Path $launcher -Encoding ascii -Value @(
   "`"$powershell`" -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File `"%~dp0host.ps1`""
 )
 
+# Keep the IDs an earlier run allowed, so a copy from the Chrome Web Store and a loaded folder can share one bridge.
+$origins = @("chrome-extension://$ExtensionId/")
+try {
+  $previous = (Get-Item $registryKey -ErrorAction Stop).GetValue('')
+  if ($previous -and (Test-Path $previous)) {
+    $origins += @((Get-Content $previous -Raw | ConvertFrom-Json).allowed_origins) -match '^chrome-extension://[a-p]{32}/$'
+  }
+} catch { }
+$origins = @($origins | Select-Object -Unique)
+
 $json = [ordered]@{
   name            = $hostName
   description     = 'Lets Rote ask the local Claude Code or Codex install to answer form questions.'
   path            = $launcher
   type            = 'stdio'
-  allowed_origins = @("chrome-extension://$ExtensionId/")
+  allowed_origins = $origins
 } | ConvertTo-Json
 # Chrome rejects a manifest that starts with a byte order mark, and this call writes none in any PowerShell version.
 [IO.File]::WriteAllText($manifest, $json)

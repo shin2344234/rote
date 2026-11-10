@@ -1,0 +1,54 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Operations Analyst at Northwind Freight</title>
+<style>
+  body { margin: 0; font: 15px/1.45 system-ui, "Segoe UI", sans-serif; color: #1d2329; background: #f3f5f7; }
+  header { background: #1f3b57; color: #fff; padding: 18px 40px; font-weight: 600; letter-spacing: .02em; }
+  main { max-width: 640px; margin: 28px auto; background: #fff; padding: 28px 36px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+  h1 { font-size: 24px; margin: 0 0 4px; }
+  .meta { color: #5a646e; margin: 0 0 22px; }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 0 16px; }
+  label { display: block; font-weight: 600; font-size: 13px; margin: 12px 0 4px; }
+  input[type=text], input[type=email], input[type=tel], input[type=url], select, textarea { width: 100%; box-sizing: border-box; padding: 8px 10px; border: 1px solid #c4ccd4; border-radius: 5px; font: inherit; background: #fff; }
+  textarea { height: 70px; }
+  fieldset { border: 0; padding: 0; margin: 12px 0 0; }
+  legend { font-weight: 600; font-size: 13px; margin-bottom: 4px; }
+  fieldset label { display: inline; font-weight: 400; margin-right: 16px; }
+  button { margin-top: 20px; background: #1f3b57; color: #fff; border: 0; border-radius: 5px; padding: 10px 22px; font: inherit; font-weight: 600; }
+</style>
+<header>Northwind Freight careers</header>
+<main>
+  <h1>Operations Analyst</h1>
+  <p class="meta">Austin, Texas. Full time.</p>
+  <form onsubmit="return false">
+    <div class="row">
+      <div><label for="fn">First name *</label><input type="text" id="fn" name="first_name"></div>
+      <div><label for="ln">Last name *</label><input type="text" id="ln" name="last_name"></div>
+    </div>
+    <div class="row">
+      <div><label for="em">Email *</label><input type="email" id="em" name="email"></div>
+      <div><label for="ph">Phone</label><input type="tel" id="ph" name="phone"></div>
+    </div>
+    <div class="row">
+      <div><label for="city">City</label><input type="text" id="city" name="city"></div>
+      <div><label for="li">LinkedIn profile</label><input type="url" id="li" name="linkedin"></div>
+    </div>
+    <label for="cv">Resume</label><input type="file" id="cv" name="resume" accept=".pdf,.docx">
+    <div class="row">
+      <div><label for="co">Current company</label><input type="text" id="co" name="current_company"></div>
+      <div><label for="sc">School</label><input type="text" id="sc" name="school"></div>
+    </div>
+    <fieldset>
+      <legend>Are you legally authorized to work in the United States?</legend>
+      <label><input type="radio" name="auth" value="yes"> Yes</label>
+      <label><input type="radio" name="auth" value="no"> No</label>
+    </fieldset>
+    <fieldset>
+      <legend>Will you now or in the future require visa sponsorship?</legend>
+      <label><input type="radio" name="sponsor" value="yes"> Yes</label>
+      <label><input type="radio" name="sponsor" value="no"> No</label>
+    </fieldset>
+    <label for="why">Why do you want to work at Northwind Freight?</label><textarea id="why" name="question_why"></textarea>
+    <button type="submit">Submit application</button>
+  </form>
+</main>
