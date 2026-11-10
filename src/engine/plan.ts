@@ -3,16 +3,17 @@ import type { BankAnswer, PlanRow, Profile, ScannedField, RowStatus } from '../s
 import { CATALOG, CATALOG_BY_KEY, type CatalogEntry } from './catalog';
 import { isBlocked, LOW_SCORE, READY_SCORE, repeatIndex, scoreField } from './match';
 import { chooseOption, savedChoices } from './options';
-import { normalize, similarity } from './text';
+import { normalize, readDate, similarity } from './text';
 
 const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
+// A date picker needs a month, and guessing January would put a wrong date on the application.
 function formatDate(stored: string, field: ScannedField): string {
-  if (!stored) return '';
-  const [year, month] = stored.split('-');
+  const { year, month } = readDate(stored);
+  if (!year) return '';
   const s = field.signals;
-  if (s.inputType === 'date') return `${year}-${month ?? '01'}-01`;
-  if (s.inputType === 'month') return `${year}-${month ?? '01'}`;
+  if (s.inputType === 'date') return month ? `${year}-${month}-01` : '';
+  if (s.inputType === 'month') return month ? `${year}-${month}` : '';
   if (!month) return year;
   const hint = s.placeholder.toLowerCase();
   if (/y{2,4}[-/.]m{1,2}/.test(hint)) return `${year}-${month}`;
@@ -21,8 +22,7 @@ function formatDate(stored: string, field: ScannedField): string {
 }
 
 function datePart(stored: string, part: 'Month' | 'Year'): string {
-  if (!stored) return '';
-  const [year, month] = stored.split('-');
+  const { year, month } = readDate(stored);
   if (part === 'Year') return year;
   return month ? MONTH_NAMES[Number(month) - 1] : '';
 }
@@ -173,7 +173,7 @@ export function buildPlan(fields: ScannedField[], context: PlanContext): PlanRow
     const value = valueFor(entry, row.index, context.profile, field);
     row.value = value;
     row.status = classify(field, entry, value, top.score);
-    if (row.status === 'missing') row.reason = entry.key === 'work.current' ? 'This job is not marked as your current one.' : 'Your profile has no value for this.';
+    if (row.status === 'missing') row.reason = missingReason(entry, row.index, context.profile);
     if (row.status === 'existing') row.reason = 'The page already has a value.';
     if (row.status === 'no-option') row.reason = 'None of the choices on the page fit your saved answer.';
     if (row.status === 'confirm') row.reason = 'Sensitive answer. Confirm it for this application.';
@@ -181,6 +181,20 @@ export function buildPlan(fields: ScannedField[], context: PlanContext): PlanRow
     return row;
   });
   return rows;
+}
+
+function missingReason(entry: CatalogEntry, index: number, profile: Profile): string {
+  if (entry.key === 'work.current') return 'This job is not marked as your current one.';
+  const [group, sub] = entry.key.split('.');
+  const record = group === 'work' ? profile.work[index] : group === 'edu' ? profile.education[index] : undefined;
+  const side = sub?.match(/^(start|end)/)?.[1] as 'start' | 'end' | undefined;
+  if (record && side) {
+    if (side === 'end' && group === 'work' && profile.work[index].current) return 'This is your current job, so it has no end date.';
+    const { year, month } = readDate(record[side]);
+    const which = group === 'work' ? 'job' : 'school';
+    if (year && !month) return `Your profile has only the year for this ${which}. Add the month in your profile, as ${year}-06 for June.`;
+  }
+  return 'Your profile has no value for this.';
 }
 
 function classify(field: ScannedField, entry: CatalogEntry, value: string, score: number): RowStatus {
@@ -206,7 +220,11 @@ export function profileGaps(profile: Profile): ProfileGap[] {
     source: entry.source === 'answer' ? 'answer' : 'resume',
   }));
   if (!profile.work.length) gaps.push({ key: 'work', label: 'Work history', source: 'resume' });
-  if (!profile.education.length) gaps.push({ key: 'education', label: 'Education', source: 'resume' });
+  const yearOnly = (date: string) => Boolean(readDate(date).year) && !readDate(date).month;
+  if (profile.work.some((job) => yearOnly(job.start) || (!job.current && yearOnly(job.end)))) {
+    gaps.push({ key: 'work.months', label: 'Months for your job dates, since the resume gives only years', source: 'resume' });
+  }
+  if (!profile.education.length) gaps.push({ key: 'education', label: 'Education, if you have any', source: 'resume' });
   if (!profile.skills.length) gaps.push({ key: 'skills', label: 'Skills', source: 'resume' });
   return gaps;
 }

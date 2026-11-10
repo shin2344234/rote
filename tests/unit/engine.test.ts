@@ -3,7 +3,8 @@ import { parseResumeText, yearsOfExperience } from '../../src/parser/parse';
 import { layoutPage, type PdfItem } from '../../src/parser/layout';
 import { scoreField, isBlocked, phraseScore, repeatIndex } from '../../src/engine/match';
 import { chooseAddress, chooseOption, savedChoices, searchQueries } from '../../src/engine/options';
-import { buildPlan, findBankAnswer } from '../../src/engine/plan';
+import { buildPlan, findBankAnswer, profileGaps } from '../../src/engine/plan';
+import { readDate, storedDate } from '../../src/engine/text';
 import { canDraft, needsReview, parseReview } from '../../src/engine/review';
 import { redact } from '../../src/shared/log';
 import type { FieldSignals, PlanRow, Profile, ScannedField } from '../../src/shared/types';
@@ -298,10 +299,46 @@ describe('buildPlan', () => {
     expect(rows.map((row) => [row.value, row.status])).toEqual([['Current role', 'ready'], ['', 'missing']]);
   });
 
+  it('says why a job month is blank and never guesses one for a date picker', () => {
+    const yearOnly: Profile = { ...profile, work: [
+      { company: 'Acme', title: 'Dev', location: '', start: '2023', end: '', current: true, description: '' },
+      { company: 'Globex', title: 'QA', location: '', start: 'Jun 2019', end: '2023', current: false, description: '' },
+    ] };
+    const run = (fields: ScannedField[]) => buildPlan(fields.map((item, index) => ({ ...item, fieldId: `f${index}` })), { profile: yearOnly, bank: [] });
+    const rows = run([
+      field({ id: 'start-date-month-0', label: 'Start date month', section: 'Employment' }, { kind: 'select', options: ['January', 'June'] }),
+      field({ id: 'start-date-year-0', label: 'Start date year', section: 'Employment' }),
+      field({ id: 'end-date-year-0', label: 'End date year', section: 'Employment' }),
+      field({ id: 'start-date-month-1', label: 'Start date month', section: 'Employment' }, { kind: 'select', options: ['January', 'June'] }),
+      field({ id: 'end-date-month-1', label: 'End date month', section: 'Employment' }, { kind: 'select', options: ['January', 'June'] }),
+      field({ id: 'start-0', label: 'Start date', section: 'Employment', inputType: 'date' }),
+    ]);
+    expect(rows.map((row) => [row.key, row.value, row.status])).toEqual([
+      ['work.startMonth', '', 'missing'], ['work.startYear', '2023', 'ready'], ['work.endYear', '', 'missing'],
+      ['work.startMonth', 'June', 'ready'], ['work.endMonth', '', 'missing'], ['work.start', '', 'missing'],
+    ]);
+    expect(rows[0].reason).toMatch(/only the year for this job/);
+    expect(rows[2].reason).toMatch(/current job/);
+    expect(profileGaps(yearOnly).map((gap) => gap.key)).toContain('work.months');
+    expect(profileGaps(profile).map((gap) => gap.key)).not.toContain('work.months');
+  });
+
   it('finds answer bank entries by similar wording', () => {
     const bank = [{ id: '1', question: 'q', normalized: 'why do you want to work here', answer: 'a', updatedAt: 0 }];
     expect(findBankAnswer('Why do you want to work here?', bank)?.answer).toBe('a');
     expect(findBankAnswer('Why are you leaving your job?', bank)).toBeUndefined();
+  });
+});
+
+describe('profile dates', () => {
+  it.each([
+    ['2023', '2023'], ['2023-06', '2023-06'], ['2023-6', '2023-06'], ['06/2023', '2023-06'], ['6/2023', '2023-06'],
+    ['Jun 2023', '2023-06'], ['June 2023', '2023-06'], ['Sept. 2019', '2019-09'], ['2023-06-15', '2023-06'], ['', ''],
+  ])('stores %s as %s', (typed, stored) => {
+    expect(storedDate(typed)).toBe(stored);
+  });
+  it('leaves the month empty for a year alone', () => {
+    expect(readDate('2023')).toEqual({ year: '2023', month: '' });
   });
 });
 

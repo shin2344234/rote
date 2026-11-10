@@ -1,6 +1,7 @@
 // Profile editor, resume intake, answer bank and log tools.
 import { CATALOG, GROUP_TITLES, type CatalogEntry, type Group } from '../engine/catalog';
 import { profileGaps } from '../engine/plan';
+import { storedDate } from '../engine/text';
 import * as store from '../shared/db';
 import { MODELS, bridgeStatus, testClaude } from '../shared/claude';
 import { DEFAULT_MODEL as OPENROUTER_MODEL, signIn } from '../shared/openrouter';
@@ -70,7 +71,18 @@ function renderEntries<T extends object>(title: string, list: T[], columns: [key
       ...list.map((item, index) => h('div', { class: 'entry' },
         h('div', { class: 'grid' },
           ...columns.map(([key, label]) => h('label', {}, h('span', {}, label),
-            h('input', { value: String(item[key] ?? ''), input: (event: Event) => { (item[key] as string) = (event.target as HTMLInputElement).value; markDirty(); } }))),
+            h('input', {
+              value: String(item[key] ?? ''),
+              input: (event: Event) => { (item[key] as string) = (event.target as HTMLInputElement).value; markDirty(); },
+              // "Jun 2023" and "06/2023" are saved as 2023-06, the form the fill step reads.
+              change: (event: Event) => {
+                if (key !== 'start' && key !== 'end') return;
+                const input = event.target as HTMLInputElement;
+                input.value = storedDate(input.value);
+                (item[key] as string) = input.value;
+                renderGaps();
+              },
+            }))),
           ...(extras?.(item) ?? [])),
         h('button', { type: 'button', class: 'small', style: 'margin-top:6px', click: () => { list.splice(index, 1); markDirty(); draw(); renderGaps(); } }, 'Remove'))),
     );

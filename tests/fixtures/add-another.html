@@ -28,12 +28,26 @@
     block.innerHTML = `<hr><div class="header-row"><p>Employment</p>${i ? '<button type="button" aria-label="Remove employment">x</button>' : ''}</div>
       <div class="field"><label for="company-name-${i}">Company name</label><input id="company-name-${i}"></div>
       <div class="field"><label for="title-${i}">Title</label><input id="title-${i}"></div>
-      <div class="date-row"><div class="field"><label for="start-date-month-${i}">Start date month</label><select id="start-date-month-${i}"><option value="">Select</option><option>January</option><option>March</option><option>December</option></select></div>
+      <div class="date-row"><div class="field"><label for="start-date-month-${i}">Start date month</label><input id="start-date-month-${i}" role="combobox" aria-controls="start-months-${i}" autocomplete="off" placeholder="Select..."><ul id="start-months-${i}" role="listbox" hidden></ul></div>
       <div class="field"><label for="start-date-year-${i}">Start date year</label><input id="start-date-year-${i}" type="number"></div></div>
       <div class="date-row"><div class="field"><label for="end-date-month-${i}">End date month</label><select id="end-date-month-${i}"><option value="">Select</option><option>January</option><option>March</option><option>December</option></select></div>
       <div class="field"><label for="end-date-year-${i}">End date year</label><input id="end-date-year-${i}" type="number"></div></div>
       <div class="field"><input type="checkbox" id="current-role-${i}_1" name="current-role-${i}"><label for="current-role-${i}_1">Current role</label></div>`;
     blocks.insertBefore(block, document.getElementById('add-employment'));
+    wireCombo(document.getElementById(`start-date-month-${i}`), document.getElementById(`start-months-${i}`), MONTHS);
+  }
+  // Greenhouse month fields are searchable lists that open on click and drop unpicked text on blur.
+  const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  function wireCombo(input, list, items) {
+    const show = () => {
+      const q = input.value.toLowerCase().split(',')[0].trim();
+      list.innerHTML = '';
+      items.filter((item) => !q || item.toLowerCase().startsWith(q)).forEach((item) => { const li = document.createElement('li'); li.setAttribute('role', 'option'); li.textContent = item; li.addEventListener('mousedown', (event) => event.preventDefault()); li.addEventListener('click', () => { input.value = item; input.dataset.picked = item; list.hidden = true; }); list.appendChild(li); });
+      list.hidden = !list.children.length;
+    };
+    input.addEventListener('input', show);
+    input.addEventListener('click', show);
+    input.addEventListener('blur', () => setTimeout(() => { if (input.value !== input.dataset.picked) input.value = ''; list.hidden = true; }, 0));
   }
   addBlock();
   document.getElementById('add-education').addEventListener('click', () => { document.body.dataset.education = 'added'; });

@@ -124,6 +124,21 @@ test('parses a PDF resume into the review form and saves it', async ({ shared: c
   await page.close();
 });
 
+test('stores a typed job month the way the fill step reads it', async ({ shared: context, extensionId }) => {
+  const page = await context.newPage();
+  await page.goto(`chrome-extension://${extensionId}/options.html`);
+  const start = page.locator('[data-section="Work history"] .entry').first().locator('input').nth(3);
+  await expect(start).toHaveValue('2021-01');
+  await start.fill('2021');
+  await start.blur();
+  await expect(page.locator('#gaps')).toContainText('Months for your job dates');
+  await start.fill('Jun 2021');
+  await start.blur();
+  await expect(start).toHaveValue('2021-06');
+  await expect(page.locator('#gaps')).not.toContainText('Months for your job dates');
+  await page.close();
+});
+
 test('parses a DOCX resume', async ({ shared: context, extensionId, files }) => {
   const page = await context.newPage();
   await page.goto(`chrome-extension://${extensionId}/options.html`);
@@ -214,6 +229,7 @@ test('adds a work block for each job and ticks current role', async ({ shared: c
   await expect(target.locator('[id="company-name-1"]')).toHaveValue('Globex Inc');
   await expect(target.locator('[id="company-name-0"]')).toHaveValue('Acme Corp');
   await expect(target.locator('[id="title-1"]')).toHaveValue('Software Engineer');
+  await expect(target.locator('[id="start-date-month-0"]')).toHaveValue('January');
   await expect(target.locator('[id="start-date-month-1"]')).toHaveValue('March');
   await expect(target.locator('[id="end-date-year-1"]')).toHaveValue('2020');
   await expect(target.locator('[id="start-date-year-1"]')).toHaveValue('2018');
