@@ -52,6 +52,34 @@ const nav = `<nav class="wrap sign" aria-label="Main">
   <a href="https://github.com/shin2344234/rote">Source code</a>
 </nav>`;
 
+// Ticket buttons and the dark command box with its Copy button. The home page and the
+// finish pages the install script opens both use them.
+const ticketCss = `
+  .tk { position: relative; isolation: isolate; display: inline-block; color: var(--ink); filter: drop-shadow(0 2px 3px rgba(20, 23, 26, .4)); }
+  .tk::before { content: ""; position: absolute; inset: 0; z-index: -1; background: var(--tk, var(--ticket));
+    -webkit-mask: radial-gradient(circle 5px at 0 50%, #0000 97%, #000) left / 51% 14px repeat-y, radial-gradient(circle 5px at 100% 50%, #0000 97%, #000) right / 51% 14px repeat-y;
+    mask: radial-gradient(circle 5px at 0 50%, #0000 97%, #000) left / 51% 14px repeat-y, radial-gradient(circle 5px at 100% 50%, #0000 97%, #000) right / 51% 14px repeat-y; }
+  a.tk, button.tk { font: 400 30px/1 var(--display); padding: 15px 30px 13px; text-decoration: none; border: 0; background: none; cursor: pointer; transition: transform .35s var(--ease); }
+  a.tk:hover, button.tk:hover { transform: translateY(-2px); }
+  a.tk:active, button.tk:active { transform: translateY(1px); }
+  button.tk.small { font-size: 22px; padding: 9px 20px 7px; }
+  .cmd { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 14px; margin-top: 10px; background: var(--ink); color: var(--light); padding: 12px 14px; border-radius: 4px; }
+  .cmd code { flex: 1 1 16em; font: 500 15px/1.45 ui-monospace, Consolas, monospace; overflow-wrap: anywhere; }
+  .cmd .tk:focus-visible { outline-color: var(--ticket); }
+`;
+
+const copyScript = `
+  document.querySelectorAll('[data-copy]').forEach(function (button) {
+    button.addEventListener('click', function () {
+      var label = button.textContent;
+      navigator.clipboard.writeText(button.dataset.copy).then(function () {
+        button.textContent = 'Copied';
+        setTimeout(function () { button.textContent = label; }, 1800);
+      }, function () { button.textContent = 'Select and copy it'; });
+    });
+  });
+`;
+
 const homeCss = `
   .board { background: var(--board); padding: 12px; border-radius: 6px; box-shadow: 0 6px 14px rgba(20, 23, 26, .35); }
   .board canvas { display: block; width: 100%; height: 108px; }
@@ -61,14 +89,7 @@ const homeCss = `
   .actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 28px; font-weight: 600; }
   .aihelp { max-width: 34em; margin: 26px 0 0; font-size: 1rem; }
 
-  .tk { position: relative; isolation: isolate; display: inline-block; color: var(--ink); filter: drop-shadow(0 2px 3px rgba(20, 23, 26, .4)); }
-  .tk::before { content: ""; position: absolute; inset: 0; z-index: -1; background: var(--tk, var(--ticket));
-    -webkit-mask: radial-gradient(circle 5px at 0 50%, #0000 97%, #000) left / 51% 14px repeat-y, radial-gradient(circle 5px at 100% 50%, #0000 97%, #000) right / 51% 14px repeat-y;
-    mask: radial-gradient(circle 5px at 0 50%, #0000 97%, #000) left / 51% 14px repeat-y, radial-gradient(circle 5px at 100% 50%, #0000 97%, #000) right / 51% 14px repeat-y; }
-  a.tk, button.tk { font: 400 30px/1 var(--display); padding: 15px 30px 13px; text-decoration: none; border: 0; background: none; cursor: pointer; transition: transform .35s var(--ease); }
-  a.tk:hover, button.tk:hover { transform: translateY(-2px); }
-  a.tk:active, button.tk:active { transform: translateY(1px); }
-  button.tk.small { font-size: 22px; padding: 9px 20px 7px; }
+${ticketCss}
 
   .clip { position: relative; border-radius: 12px; padding: 40px 14px 14px;
     background: var(--clipboard);
@@ -114,8 +135,6 @@ const homeCss = `
   ol.steps h4 { font-size: 1.2rem; font-weight: 700; margin: 2px 0 2px; line-height: 1.3; }
   ol.steps p { margin: 0; }
   ol.steps .do { margin-top: 12px; }
-  .cmd { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 14px; margin-top: 10px; background: var(--ink); color: var(--light); padding: 12px 14px; border-radius: 4px; }
-  .cmd code { flex: 1 1 16em; font: 500 15px/1.45 ui-monospace, Consolas, monospace; overflow-wrap: anywhere; }
   .bridge { margin-top: clamp(64px, 8vw, 104px); }
   .bridge > h3 { font-size: clamp(2.6rem, 5vw, 4.2rem); }
   .note { max-width: 44em; margin: 36px 0 0; }
@@ -123,7 +142,6 @@ const homeCss = `
   .window > p { margin: 0; }
   .branch { font: 400 32px/1 var(--display); margin: 30px 0 8px; }
   .branch + ol.steps { margin-top: 16px; }
-  .cmd .tk:focus-visible { outline-color: var(--ticket); }
   .coffee a.tk:focus-visible { outline-color: var(--ink); }
 
   ol.roll { background: var(--paper); }
@@ -318,16 +336,7 @@ const homeScript = `
   if (window.ResizeObserver) new ResizeObserver(draw).observe(canvas);
   if (matchMedia('(prefers-reduced-motion: reduce)').matches) { replay.hidden = true; }
   else { replay.addEventListener('click', play); play(); }
-
-  document.querySelectorAll('[data-copy]').forEach(function (button) {
-    button.addEventListener('click', function () {
-      var label = button.textContent;
-      navigator.clipboard.writeText(button.dataset.copy).then(function () {
-        button.textContent = 'Copied';
-        setTimeout(function () { button.textContent = label; }, 1800);
-      }, function () { button.textContent = 'Select and copy it'; });
-    });
-  });
+${copyScript}
 })();
 `;
 
@@ -521,15 +530,19 @@ ${nav}
 </main>
 `);
 
-// The install script opens this page because Chrome won't open chrome://extensions from
-// a command line. There's no copy button for that address, because the clipboard already
-// holds the folder path the Load unpacked step needs.
-const nextCss = `${proseCss}
+// The install script opens these pages because Chrome won't open chrome://extensions from
+// a command line. A web page can't link to it either, so the address gets a Copy button.
+// Copying it replaces the folder path the script put on the clipboard, so the folder gets
+// one too. Windows folder pickers expand %LOCALAPPDATA%, so the same text works for everyone
+// who kept the default folder.
+const nextCss = `${proseCss}${ticketCss}
   ol { padding-left: 1.4em; margin: 0 0 14px; }
-  li { margin: 0 0 10px; }
-  code { font-weight: 700; }
+  li { margin: 0 0 14px; }
+  .cmd { max-width: 30em; }
 `;
-const typeAddress = '<li>Click in the address bar at the top of this window, type <code>chrome://extensions</code> and press Enter. Chrome doesn\'t let a script or a link open that page for you.</li>';
+const copyBox = (text) => `<div class="cmd"><code>${text}</code><button class="tk small" type="button" data-copy="${text}">Copy</button></div>`;
+const extensionFolder = '%LOCALAPPDATA%\\Rote\\extension';
+const openAddress = `<li>Copy this address, click in the address bar at the top of this window, press Ctrl+V and press Enter. Chrome doesn't let a link or a script open that page.${copyBox('chrome://extensions')}</li>`;
 
 export const NEXT_LOAD_PAGE = shell('Finish installing Rote', 'The last steps of installing Rote in Chrome.', nextCss, `
 ${nav}
@@ -537,13 +550,14 @@ ${nav}
 <h1>Almost done</h1>
 <p>Rote is downloaded. Chrome needs you for the last few clicks.</p>
 <ol>
-${typeAddress}
+${openAddress}
 <li>Turn on Developer mode with the switch at the top right.</li>
-<li>Click Load unpacked at the top left. The install command copied the folder's location, so press Ctrl+V in the Folder box at the bottom of the window and click Select Folder.</li>
+<li>Click Load unpacked at the top left. Copy the folder below, press Ctrl+V in the Folder box at the bottom of the window and click Select Folder. If you gave the install command your own folder, use that one. PowerShell shows where it put Rote.${copyBox(extensionFolder)}</li>
 <li>${pin}</li>
 </ol>
 <p>If Load unpacked isn't there, Developer mode is still off.</p>
 </main>
+<script>${copyScript}</script>
 `);
 
 export const NEXT_RELOAD_PAGE = shell('Finish updating Rote', 'The last step of updating Rote in Chrome.', nextCss, `
@@ -552,11 +566,12 @@ ${nav}
 <h1>One more click</h1>
 <p>The new version of Rote is in the same folder as before. Chrome keeps running the old one until you reload it.</p>
 <ol>
-${typeAddress}
+${openAddress}
 <li>Find Rote's card and click its reload icon, the circular arrow.</li>
 </ol>
 <p>Your profile and saved answers stay as they were.</p>
 </main>
+<script>${copyScript}</script>
 `);
 
 export const CONNECTED_PAGE = shell('Rote is connected', 'OpenRouter sign-in finished.', proseCss, `
