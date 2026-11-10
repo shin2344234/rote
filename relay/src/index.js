@@ -2,6 +2,7 @@
 // and files each one as an issue in a private GitHub repo. The GitHub token stays on
 // the server, so it never ships inside the extension. The handler uses only web
 // standard requests and responses, and server.mjs runs it under Node.
+import { FONTS } from './fonts.js';
 import { CONNECTED_PAGE, HOME_PAGE, PRIVACY_PAGE } from './pages.js';
 
 export const MAX_ZIP_BYTES = 1_500_000;
@@ -49,6 +50,30 @@ async function github(env, method, path, body) {
   });
   if (!response.ok) throw new Error(`GitHub answered ${response.status} to ${method} ${path}`);
   return response.json();
+}
+
+// The zip names change with each version, so /download and /download-bridge look up the current ones.
+// Answers are kept for ten minutes because GitHub limits unsigned lookups. Any failure lands on the releases page.
+const SOURCE_REPO = 'shin2344234/rote';
+const RELEASES_PAGE = `https://github.com/${SOURCE_REPO}/releases/latest`;
+const EXTENSION_ZIP = /^rote-\d[\d.]*\.zip$/;
+const BRIDGE_ZIP = /^rote-bridge-\d[\d.]*\.zip$/;
+let latest = { assets: [], expires: 0 };
+
+async function latestDownload(zipName, now = Date.now()) {
+  if (now >= latest.expires) {
+    let assets = [];
+    try {
+      const response = await fetch(`https://api.github.com/repos/${SOURCE_REPO}/releases/latest`, {
+        headers: { Accept: 'application/vnd.github+json', 'User-Agent': 'rote-site' },
+      });
+      if (response.ok) assets = (await response.json()).assets ?? [];
+    } catch (error) {
+      console.error(error.message);
+    }
+    latest = { assets, expires: now + (assets.length ? 600_000 : 60_000) };
+  }
+  return latest.assets.find((asset) => zipName.test(asset.name))?.browser_download_url ?? RELEASES_PAGE;
 }
 
 async function fileReport(request, env) {
@@ -107,6 +132,11 @@ export default {
     if (request.method !== 'GET' && request.method !== 'HEAD') return json(405, { error: 'Method not allowed.' });
     if (pathname === '/') return page(HOME_PAGE);
     if (pathname === '/privacy') return page(PRIVACY_PAGE);
+    if (pathname === '/download' || pathname === '/download-bridge') {
+      const location = await latestDownload(pathname === '/download' ? EXTENSION_ZIP : BRIDGE_ZIP);
+      return new Response(null, { status: 302, headers: { Location: location, 'Cache-Control': 'no-store' } });
+    }
+    if (FONTS[pathname]) return new Response(Uint8Array.from(atob(FONTS[pathname]), (char) => char.charCodeAt(0)), { headers: { 'Content-Type': 'font/woff2', 'Cache-Control': 'public, max-age=31536000, immutable' } });
     // OpenRouter sends the browser here after a sign-in. The extension reads the code from the tab and closes it.
     if (pathname === '/openrouter') return new Response(CONNECTED_PAGE, { headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer' } });
     return new Response('Not found', { status: 404 });

@@ -139,10 +139,36 @@ describe('relay worker', () => {
 
   it('serves the home and privacy pages', async () => {
     const home = await worker.fetch(new Request('https://rote.walker-computers.com/'), ENV);
-    expect(await home.text()).toContain('<h1>Rote</h1>');
+    expect(await home.text()).toContain('Stop retyping your resume into every job application.');
     const privacy = await worker.fetch(new Request('https://rote.walker-computers.com/privacy'), ENV);
     expect(await privacy.text()).toContain('What leaves your browser');
     expect((await worker.fetch(new Request('https://rote.walker-computers.com/nope'), ENV)).status).toBe(404);
+  });
+
+  it('serves its own fonts as binary files', async () => {
+    const font = await worker.fetch(new Request('https://rote.walker-computers.com/fonts/league-gothic.woff2'), ENV);
+    expect(font.headers.get('content-type')).toBe('font/woff2');
+    expect(new TextDecoder().decode((await font.arrayBuffer()).slice(0, 4))).toBe('wOF2');
+  });
+
+  it('sends each download route to its own zip', async () => {
+    let lookups = 0;
+    vi.stubGlobal('fetch', async () => {
+      lookups += 1;
+      return new Response(JSON.stringify({ assets: [
+        { name: 'rote-bridge-9.9.9.zip', browser_download_url: 'https://example.com/bridge.zip' },
+        { name: 'rote-9.9.9.zip', browser_download_url: 'https://example.com/rote.zip' },
+      ] }));
+    });
+    const request = () => worker.fetch(new Request('https://rote.walker-computers.com/download'), ENV);
+    const first = await request();
+    expect(first.status).toBe(302);
+    expect(first.headers.get('location')).toBe('https://example.com/rote.zip');
+    expect((await request()).headers.get('location')).toBe('https://example.com/rote.zip');
+    const bridge = await worker.fetch(new Request('https://rote.walker-computers.com/download-bridge'), ENV);
+    expect(bridge.status).toBe(302);
+    expect(bridge.headers.get('location')).toBe('https://example.com/bridge.zip');
+    expect(lookups).toBe(1);
   });
 });
 

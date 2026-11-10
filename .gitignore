@@ -15,3 +15,7 @@ bridge/host-manifest.json
 .claude/
 *.zip
 release/
+
+PRODUCT.md
+DESIGN.md
+.impeccable/

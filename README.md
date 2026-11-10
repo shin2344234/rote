@@ -1,12 +1,14 @@
 # Rote
 
-A Chrome extension that parses your resume locally and fills job applications on any site. Scanning and filling use no AI and no server. Nothing leaves the browser except what you put on a job form, unless you turn on the AI review below and click its button.
+Rote is a Chrome extension that reads your resume in your browser and fills out job applications on pretty much any site. Scanning and filling don't use AI or a server. The only thing that leaves your browser is what goes on the job form, unless you turn on AI review and click its button.
 
-Rote is free. If it helps you get hired, you can [buy me a coffee](https://buymeacoffee.com/SethWalker234).
+If you want AI help with the questions Rote can't answer, you can connect Claude Code or Codex through the bridge, use an API key, or run a model on your own computer. Whichever you pick gets your whole profile and saved answers when you click the review button.
+
+Rote's free. If it helps you get hired, you can [buy me a coffee](https://buymeacoffee.com/SethWalker234).
 
 ## Install
 
-A Chrome Web Store listing is on the way. Until then, install from a release:
+It'll be in the Chrome Web Store eventually. For now, install it from a release:
 
 1. Download `rote-<version>.zip` from the [latest release](https://github.com/shin2344234/rote/releases/latest) and unzip it somewhere you will keep it.
 2. Open `chrome://extensions` and turn on Developer mode.
@@ -20,17 +22,27 @@ irm https://raw.githubusercontent.com/shin2344234/rote/main/install.ps1 | iex
 
 That command runs a script straight from the internet. To read it first, download [`install.ps1`](install.ps1) and run it yourself. Run it again to update.
 
-To set up the bridge for Claude Code and Codex in the same run, use this form instead. It unpacks the bridge and registers it with Chrome for the current Windows user, so the setup command further down is not needed. The bridge needs Node.
+To update by hand, unzip the new release over the same folder and click the reload icon on the extension's card. Your profile and saved answers stay in the browser.
+
+### Without the bridge
+
+Install with either method above and stop there. Scanning and filling use no AI and need nothing else. The AI review also works without the bridge through an API key or a local model. Pick one under AI review in Profile and logs.
+
+### With the bridge
+
+The bridge lets the AI review use the Claude Code or Codex already on your PC, under that tool's sign-in and plan. It needs Windows, Node, and Claude Code or Codex installed and signed in.
+
+If you use the PowerShell install, run this form of the command in place of the one above. It unpacks the bridge and registers it with Chrome for the current Windows user. If Rote is already loaded, click the reload icon on its card afterwards.
 
 ```powershell
 & ([scriptblock]::Create((irm https://raw.githubusercontent.com/shin2344234/rote/main/install.ps1))) -WithBridge
 ```
 
-A downloaded copy takes the same switch, as in `.\install.ps1 -WithBridge`. The registration depends on the folder path, so run the script again if you move the folder.
+A downloaded copy takes the same switch, as in `.\install.ps1 -WithBridge`.
 
-To update by hand, unzip the new release over the same folder and click the reload icon on the extension's card. Your profile and saved answers stay in the browser.
+If you installed from the zip, download `rote-bridge-<version>.zip` from the same release and unzip it. Under AI review in Profile and logs, set Connection to Claude Code on this PC or Codex on this PC. The page shows a setup command with your extension's ID filled in. Copy it, paste it into PowerShell in the unzipped folder, and click Check again.
 
-The same release has `rote-bridge-<version>.zip`. You need it only to use a Claude Code or Codex install on your PC, and the extension walks you through it.
+The registration depends on the folder Rote loads from, so run the script or the setup command again if you move that folder.
 
 ## Use
 
@@ -38,7 +50,7 @@ Click the toolbar icon to open the side panel, then Profile and logs. Add a PDF,
 
 After updating the extension, click Reparse next to a saved resume to run the new parser on the stored file. The result loads into the form and overwrites what the parser finds, including your edits to those fields. Nothing is saved until you click Save profile. A field the new parser no longer finds keeps its saved value.
 
-On an application page, click Scan page, then Fill form. Green outlines are confident fills. Amber outlines need a look. The panel lists what still needs you. On multi-step forms, scan again on each step.
+On an application page, click Scan page, then Fill form. Green means it's confident. Amber means double-check it. The panel lists what's left for you to do. On multi-step forms, scan again on each step.
 
 The tool never clicks submit, never solves a CAPTCHA, and never stores or fills SSNs, dates of birth, passwords or bank details. Single checkboxes stay untouched because they are usually consent statements.
 
