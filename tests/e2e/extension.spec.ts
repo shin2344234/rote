@@ -1,5 +1,5 @@
 import { test as base, expect, chromium, type BrowserContext, type Page, type Route } from '@playwright/test';
-import { mkdirSync, statSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import JSZip from 'jszip';
 import { PDFDocument, StandardFonts } from 'pdf-lib';
@@ -7,6 +7,8 @@ import { PDFDocument, StandardFonts } from 'pdf-lib';
 const BASE = 'http://localhost:4173/tests/fixtures';
 const WORK = path.resolve('test-results/generated');
 const EMAIL = 'jordan.avery@example.com';
+const VERSION = (JSON.parse(readFileSync('package.json', 'utf8')) as { version: string }).version;
+const RELEASES = 'https://api.github.com/repos/shin2344234/rote/releases/latest';
 
 const LINES = [
   'Jordan Avery',
@@ -63,6 +65,8 @@ const test = base.extend<{}, { shared: BrowserContext; extensionId: string; file
       headless: true,
       args: [`--disable-extensions-except=${dist}`, `--load-extension=${dist}`],
     });
+    // The panel asks GitHub for the newest release. Tests answer for it with this build's version.
+    await context.route(RELEASES, (route) => route.fulfill({ json: { tag_name: `v${VERSION}` } }));
     await use(context);
     await context.close();
   }, { scope: 'worker' }],
@@ -1217,4 +1221,34 @@ test('guides the bridge setup, links to key pages and offers the OpenRouter sign
   // Playwright can mock it, so clicking the button here would reach the real openrouter.ai.
   await expect(options.locator('#openrouter-signin')).toBeEnabled();
   await options.close();
+});
+
+test('shows the version and asks for an update only when a newer release is out', async ({ shared: context, extensionId }) => {
+  const clear = async (page: Page) => page.evaluate(() => chrome.storage.local.remove('latestRelease'));
+  const { target, panel } = await openPanelFor(context, extensionId, `${BASE}/plain.html`);
+  const link = panel.locator('#version');
+  await expect(link).toHaveText(`v${VERSION}`);
+  await expect(link).toHaveAttribute('href', 'https://rote.walker-computers.com/#update');
+  await expect(panel.locator('#outdated')).toBeHidden();
+
+  await context.route(RELEASES, (route) => route.fulfill({ json: { tag_name: 'v99.0.0' } }));
+  await clear(panel);
+  await panel.reload();
+  await expect(panel.locator('#outdated')).toBeVisible();
+  await expect(panel.locator('#outdated')).toHaveText('Please update');
+  await expect(link).toHaveAttribute('title', /99\.0\.0/);
+  const box = await link.boundingBox();
+  const note = await panel.locator('#outdated').boundingBox();
+  expect(note!.x + note!.width).toBeLessThanOrEqual(box!.x);
+
+  await context.route(RELEASES, (route) => route.fulfill({ status: 403, json: { message: 'rate limited' } }));
+  await clear(panel);
+  await panel.reload();
+  await expect(link).toHaveText(`v${VERSION}`);
+  await expect(panel.locator('#outdated')).toBeHidden();
+
+  await context.route(RELEASES, (route) => route.fulfill({ json: { tag_name: `v${VERSION}` } }));
+  await clear(panel);
+  await target.close();
+  await panel.close();
 });

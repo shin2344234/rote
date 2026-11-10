@@ -1,6 +1,6 @@
 # Rote
 
-Rote is a Chrome extension that reads your resume in your browser and fills out job applications on pretty much any site. Scanning and filling don't use AI or a server. The only thing that leaves your browser is what goes on the job form, unless you turn on AI review and click its button.
+Rote is a Chrome extension that reads your resume in your browser and fills out job applications on pretty much any site. Scanning and filling don't use AI or a server. What goes on the job form is all that leaves your browser, unless you turn on AI review and click its button. The panel also asks GitHub for the newest release number every few hours, and that request holds nothing from your profile.
 
 If you want AI help with the questions Rote can't answer, you can connect Claude Code or Codex through the bridge, use an API key, or run a model on your own computer. Whichever you pick gets your whole profile and saved answers when you click the review button.
 
@@ -23,6 +23,8 @@ irm https://raw.githubusercontent.com/shin2344234/rote/main/install.ps1 | iex
 That command runs a script straight from the internet. To read it first, download [`install.ps1`](install.ps1) and run it yourself.
 
 Run the same command again to update. It reads the installed version and stops if that is already the latest, so `-Force` is there to unpack again anyway. An update rewrites the files in place and removes ones the new release dropped. The folder stays the same, so Chrome keeps the extension ID and your saved profile, and you only click the reload icon on the Rote card. If the bridge is in the Rote folder, the update replaces and re-registers it too. The script refuses to write into a folder that holds anything other than an earlier copy of Rote.
+
+The version at the bottom right of the side panel links to the update steps, and "Please update" shows next to it when a newer release is out.
 
 To update by hand, unzip the new release over the same folder and click the reload icon on the extension's card. Your profile and saved answers stay in the browser.
 

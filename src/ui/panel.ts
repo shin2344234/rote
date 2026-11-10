@@ -9,6 +9,7 @@ import { activeModel, providerName } from '../shared/providers';
 import { getClaudeSettings, getProfile, listAnswers, listResumes, putAnswer } from '../shared/db';
 import { createLogger, errorData, newRunId, stripUrl } from '../shared/log';
 import type { ClaudeSettings, ContentRequest, FillItem, FillResult, PlanRow, ScannedField, StoredResume } from '../shared/types';
+import { isNewer, latestVersion } from '../shared/version';
 import { byId, h } from './dom';
 
 let runId = '';
@@ -630,7 +631,17 @@ async function loadResumes(): Promise<void> {
   if (!resumes.length) select.append(h('option', { value: '' }, 'No resume added yet'));
 }
 
+async function showVersion(): Promise<void> {
+  const current = chrome.runtime.getManifest().version;
+  byId('version').textContent = `v${current}`;
+  const latest = await latestVersion();
+  const outdated = latest !== undefined && isNewer(latest, current);
+  byId('outdated').hidden = !outdated;
+  byId('version').title = outdated ? `Version ${latest} is out. Click for how to update.` : 'How to update Rote';
+}
+
 async function init(): Promise<void> {
+  void showVersion().catch((error) => log.error('version.check', errorData(error)));
   await loadResumes();
 
   const profile = await getProfile();

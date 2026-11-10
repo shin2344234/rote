@@ -62,6 +62,9 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .tag.good { color: var(--good); }
 .tag.warn { color: var(--warn); }
 .tag.bad { color: var(--bad); }
+.version { display: flex; justify-content: flex-end; align-items: baseline; gap: 8px; margin-top: 12px; font-size: 12px; }
+.version a { color: var(--muted); }
+.version .tag { font-size: 12px; font-weight: 600; }
 .confirm-line { display: flex; gap: 5px; align-items: center; }
 
 /* Options */

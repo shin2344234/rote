@@ -442,7 +442,7 @@ ${nav}
   </div>
   <div class="bridge" id="update">
     <h3>Update Rote</h3>
-    <p class="intro">Rote doesn't update itself yet. You'll find your version on Rote's card at chrome://extensions and the newest one on the <a href="https://github.com/shin2344234/rote/releases/latest">releases page</a>.</p>
+    <p class="intro">Rote doesn't update itself yet. Your version is at the bottom right of Rote's panel, and the panel says Please update when a newer one is out. The newest one is always on the <a href="https://github.com/shin2344234/rote/releases/latest">releases page</a>.</p>
     <div class="windows">
       <div class="window">
         <header><span class="letter" aria-hidden="true">A</span><div><h3>Replace the files</h3><p>If you installed by downloading the zip.</p></div></header>
@@ -523,6 +523,7 @@ ${nav}
 <p>When Rote fills out a form, your details go to that job site, same as if you'd typed them. If it attaches your resume, that gets uploaded there too.</p>
 <p>AI review is off until you turn it on. When you click its button, your whole profile, your saved answers and the unanswered questions go to whichever AI provider you picked. If you picked a model on your own computer, they stay on your computer.</p>
 <p>A bug report only gets sent when you click Send report. It has your description, the extension and browser versions, the host name of the page, which AI connection and model you use, and Rote's log. The log has form field labels, field types, match scores and the address of each page you scanned, so a report can show which job postings you opened. Rote strips out your form answers and anything from your resume before the report leaves your browser. I only get a contact address if you type one in.</p>
+<p>Every few hours, when you open its panel, Rote asks GitHub for the newest release number so it can tell you when an update is out. That request carries nothing about you or your profile, though GitHub sees your IP address, as any website does.</p>
 <h2>What happens to a report</h2>
 <p>Reports go to a private issue tracker that only I can read, and I use them to fix the bug you reported. If you want one deleted, send me its report ID in a new report.</p>
 <h2>What Rote never collects</h2>

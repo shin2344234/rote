@@ -42,7 +42,7 @@ What it won't do
 - Answers about work authorization, sponsorship, salary and EEO questions are filled but flagged, so you confirm them for each application.
 
 Your data
-Your resume, profile and saved answers stay in this browser. There's no account and no server holding them. When Rote fills a form, your details go to that job site, the same as typing them.
+Your resume, profile and saved answers stay in this browser. There's no account and no server holding them. When Rote fills a form, your details go to that job site, the same as typing them. Every few hours the panel asks GitHub for the newest release number so it can tell you when an update is out. That request holds nothing from your profile.
 
 Optional AI help
 AI is off by default. If you turn it on, Review missed sends your whole profile, saved answers and the unanswered questions to the provider you pick: Anthropic, OpenAI, OpenRouter, another provider, or a local model such as Ollama. Nothing goes out until you click the button. On Windows, a separate bridge lets Rote use Claude Code or Codex already installed on your PC.
