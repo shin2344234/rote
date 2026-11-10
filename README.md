@@ -112,7 +112,9 @@ To host your own, change `REPORT_URL` in `src/shared/report.ts` and `CALLBACK_UR
 docker compose up -d --build
 ```
 
-To keep it current without logging in to the host, add it to Portainer as a stack from this repository instead. Use `relay/compose.yaml` as the Compose path, enter `GITHUB_REPO`, `GITHUB_TOKEN` and `PROXY_NETWORK` as the stack's environment variables, and turn on automatic updates with polling. The service sets `pull_policy: build`, so each time main changes Portainer rebuilds the image from the new commit and restarts the relay. Any commit to main counts, not only ones under `relay/`, so the relay restarts for a few seconds after extension commits too. The `data` volume and its counts carry over.
+To keep it current without logging in to the host, add it to Portainer as a stack from this repository instead. Use `relay/compose.yaml` as the Compose path, enter `GITHUB_REPO`, `GITHUB_TOKEN` and `PROXY_NETWORK` as the stack's environment variables, and turn on automatic updates with polling. The service sets `pull_policy: build`, so each time main changes Portainer rebuilds the image from the new commit and restarts the relay. A commit that leaves `relay/` alone builds the same image from cache, and the running container is left alone. The `data` volume and its counts carry over.
+
+Portainer 2.44 and 2.45 have a bug ([portainer/portainer#13258](https://github.com/portainer/portainer/issues/13258)) where a stack created or edited through the stacks API shows a polling interval but never polls. The interval now lives on the stack's git source, and the stacks API doesn't write it. If commits stop deploying, find the source with `GET /api/gitops/sources` and set it with `PUT /api/gitops/sources/{id}` and the body `{"interval":"5m"}`. Saving the stack's git settings in the Portainer UI can clear it again.
 
 To teach it a new field, add a phrase to the matching entry in `src/engine/catalog.ts`, or add a new entry. The matcher, profile form and gap report all read that table.
 
