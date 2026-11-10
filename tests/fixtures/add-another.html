@@ -25,13 +25,13 @@
     const i = next++;
     const block = document.createElement('div');
     block.className = 'employment-form';
-    block.innerHTML = `<hr><div class="header-row"><p>Employment</p></div>
+    block.innerHTML = `<hr><div class="header-row"><p>Employment</p>${i ? '<button type="button" aria-label="Remove employment">x</button>' : ''}</div>
       <div class="field"><label for="company-name-${i}">Company name</label><input id="company-name-${i}"></div>
       <div class="field"><label for="title-${i}">Title</label><input id="title-${i}"></div>
-      <div class="field"><label for="start-date-month-${i}">Start date month</label><select id="start-date-month-${i}"><option value="">Select</option><option>January</option><option>March</option><option>December</option></select></div>
-      <div class="field"><label for="start-date-year-${i}">Start date year</label><input id="start-date-year-${i}" type="number"></div>
-      <div class="field"><label for="end-date-month-${i}">End date month</label><select id="end-date-month-${i}"><option value="">Select</option><option>January</option><option>March</option><option>December</option></select></div>
-      <div class="field"><label for="end-date-year-${i}">End date year</label><input id="end-date-year-${i}" type="number"></div>
+      <div class="date-row"><div class="field"><label for="start-date-month-${i}">Start date month</label><select id="start-date-month-${i}"><option value="">Select</option><option>January</option><option>March</option><option>December</option></select></div>
+      <div class="field"><label for="start-date-year-${i}">Start date year</label><input id="start-date-year-${i}" type="number"></div></div>
+      <div class="date-row"><div class="field"><label for="end-date-month-${i}">End date month</label><select id="end-date-month-${i}"><option value="">Select</option><option>January</option><option>March</option><option>December</option></select></div>
+      <div class="field"><label for="end-date-year-${i}">End date year</label><input id="end-date-year-${i}" type="number"></div></div>
       <div class="field"><input type="checkbox" id="current-role-${i}_1" name="current-role-${i}"><label for="current-role-${i}_1">Current role</label></div>`;
     blocks.insertBefore(block, document.getElementById('add-employment'));
   }

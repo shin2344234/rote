@@ -95,9 +95,18 @@ function nearbyText(start: Element): string {
 }
 
 // Some forms title a section with a styled div, such as <div class="education--header">.
+// A repeated block's header can hold its own Remove button, as Greenhouse's added employment blocks do.
+const ENTRY_CONTROLS = CONTROLS.split(',').filter((selector) => selector !== 'button').join(',');
+
+function headingText(el: Element): string {
+  const copy = el.cloneNode(true) as Element;
+  copy.querySelectorAll('button').forEach((button) => button.remove());
+  return clean(copy.textContent);
+}
+
 function isStyledHeading(el: Element): boolean {
-  if (el.matches('label') || !/head|title/i.test(`${el.id} ${el.className}`) || el.querySelector(CONTROLS)) return false;
-  const text = clean(el.textContent);
+  if (el.matches('label') || !/head|title/i.test(`${el.id} ${el.className}`) || el.querySelector(ENTRY_CONTROLS)) return false;
+  const text = headingText(el);
   return text.length > 0 && text.length <= 60;
 }
 
@@ -107,7 +116,8 @@ export function sectionOf(el: Element): string {
   for (let depth = 0; node && depth < 12; depth++) {
     let sibling = node.previousElementSibling;
     for (let step = 0; sibling && step < 12; step++) {
-      if (sibling.matches(heading) || isStyledHeading(sibling)) return clean(sibling.textContent);
+      if (sibling.matches(heading)) return clean(sibling.textContent);
+      if (isStyledHeading(sibling)) return headingText(sibling);
       const inner = sibling.querySelectorAll(heading);
       if (inner.length) return clean(inner[inner.length - 1].textContent);
       sibling = sibling.previousElementSibling;

@@ -216,6 +216,8 @@ test('adds a work block for each job and ticks current role', async ({ shared: c
   await expect(target.locator('[id="title-1"]')).toHaveValue('Software Engineer');
   await expect(target.locator('[id="start-date-month-1"]')).toHaveValue('March');
   await expect(target.locator('[id="end-date-year-1"]')).toHaveValue('2020');
+  await expect(target.locator('[id="start-date-year-1"]')).toHaveValue('2018');
+  await expect(target.locator('[id="end-date-month-1"]')).toHaveValue('December');
   await expect(target.locator('[id="current-role-0_1"]')).toBeChecked();
   await expect(target.locator('[id="current-role-1_1"]')).not.toBeChecked();
   await expect(target.locator('[id="company-name-2"]')).toHaveCount(0);
