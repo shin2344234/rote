@@ -44,6 +44,12 @@ function aliases(key: string, value: string): string[] {
     return [norm, fromAbbr, toAbbr].filter(Boolean) as string[];
   }
   if (key === 'country') return COUNTRY_GROUPS.find((group) => group.includes(norm)) ?? [norm];
+  // Place lists spell the state out, as in "Austin, Texas, United States".
+  if (key === 'location' || key === 'city' || key === 'work.location') {
+    const place = value.match(/^\s*(.+?),\s*([A-Za-z]{2})\.?\s*(?:\d{5}(?:-\d{4})?)?\s*$/);
+    const state = place && STATES[place[2].toLowerCase()];
+    if (state) return [norm, `${normalize(place[1])} ${state}`];
+  }
   return [norm];
 }
 
@@ -147,6 +153,7 @@ export function chooseOption(key: string, value: string, options: string[]): { i
   const minimumOverlap = key === 'edu.school' ? 0.8 : 0.6;
   const scores = normalized.map(() => 0);
   let best: { index: number; score: number } | null = null;
+  let bestLength = Infinity;
   normalized.forEach((option, index) => {
     if (!option) return;
     const optionTokens = tokens(option);
@@ -161,7 +168,11 @@ export function chooseOption(key: string, value: string, options: string[]): { i
         if (overlap >= minimumOverlap) score = 0.6 + overlap / 10;
       }
       scores[index] = Math.max(scores[index], score);
-      if (score && (!best || score > best.score)) best = { index, score };
+      // Among equal fits, the option with the fewest extra words is the closest one.
+      if (score && (!best || score > best.score || (score === best.score && optionTokens.length < bestLength))) {
+        best = { index, score };
+        bestLength = optionTokens.length;
+      }
     }
   });
   // "University of Texas" fits every campus equally, and guessing one would be wrong.

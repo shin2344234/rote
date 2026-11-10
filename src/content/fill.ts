@@ -628,6 +628,8 @@ function findAddButton(field: HTMLElement, group: 'work' | 'education'): HTMLEle
   const fieldSection = sectionOf(field);
   let node: HTMLElement | null = field.parentElement;
   for (let depth = 0; node && depth < 12; depth++, node = node.parentElement) {
+    // The nearest wrapper that also holds the other section's fields is too wide for a plain "Add another".
+    const mixed = other.test(clean(node.textContent));
     const buttons = Array.from(node.querySelectorAll<HTMLElement>('button, [role=button], a'));
     const found = buttons.find((button) => {
       if (button.matches('[type=submit], [disabled], [aria-disabled=true]') || !isVisible(button)) return false;
@@ -635,7 +637,7 @@ function findAddButton(field: HTMLElement, group: 'work' | 'education'): HTMLEle
       if (text.length > 60 || !/\badd\b|^\+/i.test(text)) return false;
       if (other.test(text) && !words.test(text)) return false;
       if (words.test(text)) return true;
-      return ADD_GENERIC.test(text) && sectionOf(button) === fieldSection;
+      return ADD_GENERIC.test(text) && (!mixed || sectionOf(button) === fieldSection);
     });
     if (found) return found;
   }

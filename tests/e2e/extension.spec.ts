@@ -221,6 +221,8 @@ test('adds a work block for each job and ticks current role', async ({ shared: c
   await expect(target.locator('[id="company-name-2"]')).toHaveCount(0);
   await expect(target.locator('#question_1')).toHaveValue('Jordan');
   await expect(target.locator('#question_2')).toHaveValue('Avery');
+  await expect(target.locator('#candidate-location')).toHaveValue('Austin, Texas, United States');
+  await expect(target.locator('body')).not.toHaveAttribute('data-education', 'added');
   await expect(target.locator('body')).not.toHaveAttribute('data-submitted', 'yes');
   await expect(panel.locator('#status')).toContainText('added 1 work block');
   await target.close();

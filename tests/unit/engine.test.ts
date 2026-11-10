@@ -285,6 +285,12 @@ describe('buildPlan', () => {
     expect(rows.map((row) => [row.key, row.status])).toEqual([['firstName', 'ready'], ['firstName', 'ready']]);
   });
 
+  it('matches a City, ST location to a spelled out place list', () => {
+    const places = ['Magnolia, Arkansas, United States', 'Montgomery County, Texas, United States', 'Magnolia, Texas, United States'];
+    expect(chooseOption('location', 'Magnolia, TX', places)?.index).toBe(2);
+    expect(chooseOption('location', 'Montgomery, TX', ['Montgomery County, Texas, United States', 'Montgomery, Texas, United States'])?.index).toBe(1);
+  });
+
   it('ticks a single current role box only for the current job', () => {
     const box = (name: string) => field({ name, id: `${name}_1`, label: 'Current role', section: 'Employment' }, { kind: 'checkbox', options: ['Current role'] });
     const rows = plan([box('current-role-0'), box('current-role-1')]);
