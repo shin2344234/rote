@@ -95,14 +95,15 @@ export function createRelayServer(env) {
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   const port = Number(process.env.PORT ?? 8787);
+  const countsFile = process.env.COUNTS_FILE ?? '/data/counts.json';
   const env = {
     GITHUB_TOKEN: process.env.GITHUB_TOKEN,
     GITHUB_REPO: process.env.GITHUB_REPO,
     REPORT_LIMITER: createLimiter(),
-    COUNTER: createCounter(process.env.COUNTS_FILE ?? '/data/counts.json'),
+    COUNTER: createCounter(countsFile),
   };
   createRelayServer(env).listen(port, () => {
-    console.log(`Rote relay listening on ${port}. Reports go to ${env.GITHUB_REPO ?? 'nowhere'}${env.GITHUB_TOKEN ? '' : ', and no GitHub token is set'}.`);
+    console.log(`Rote relay listening on ${port}. Reports go to ${env.GITHUB_REPO ?? 'nowhere'}${env.GITHUB_TOKEN ? '' : ', and no GitHub token is set'}. Daily totals go to ${countsFile}.`);
   });
   for (const signal of ['SIGTERM', 'SIGINT']) process.on(signal, () => process.exit(0));
 }
