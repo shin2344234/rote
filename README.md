@@ -112,6 +112,8 @@ To host your own, change `REPORT_URL` in `src/shared/report.ts` and `CALLBACK_UR
 docker compose up -d --build
 ```
 
+The `Build and publish relay image` workflow builds `relay/` on every push to main that touches it, starts the container read-only with a fresh `/data` volume, checks the pages and the counts file, and then publishes `ghcr.io/shin2344234/rote-relay:latest`. To run that image instead of building, set `IMAGE_NAME` and `PULL_POLICY` in `relay/.env` as `.env.example` shows and run `docker compose up -d`. The container carries the `com.centurylinklabs.watchtower.enable` label, so a Watchtower started with `WATCHTOWER_LABEL_ENABLE=true` on the same host pulls each new image and restarts the relay with it.
+
 To teach it a new field, add a phrase to the matching entry in `src/engine/catalog.ts`, or add a new entry. The matcher, profile form and gap report all read that table.
 
 ## Layout
