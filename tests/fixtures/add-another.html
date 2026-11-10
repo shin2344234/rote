@@ -1,0 +1,39 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Employment block with an add another button</title>
+<form>
+  <div class="field"><label for="first_name">First Name</label><input id="first_name"></div>
+  <div class="field"><label for="last_name">Last Name</label><input id="last_name"></div>
+  <div class="employment">
+    <h3>Employment</h3>
+    <div id="blocks"></div>
+    <button type="button" id="add-employment">+ Add another</button>
+  </div>
+  <div class="field"><label for="question_1">What is your legal first name?</label><input id="question_1"></div>
+  <div class="field"><label for="question_2">What is your legal last name?</label><input id="question_2"></div>
+  <button type="submit" id="submit">Submit application</button>
+</form>
+<script>
+  const blocks = document.getElementById('blocks');
+  let next = 0;
+  function addBlock() {
+    const i = next++;
+    const block = document.createElement('div');
+    block.className = 'employment--block';
+    block.innerHTML = `
+      <div class="field"><label for="company-name-${i}">Company name</label><input id="company-name-${i}"></div>
+      <div class="field"><label for="title-${i}">Title</label><input id="title-${i}"></div>
+      <div class="field"><label for="start-date-month-${i}">Start date month</label><select id="start-date-month-${i}"><option value="">Select</option><option>January</option><option>March</option><option>December</option></select></div>
+      <div class="field"><label for="start-date-year-${i}">Start date year</label><input id="start-date-year-${i}" type="number"></div>
+      <div class="field"><label for="end-date-month-${i}">End date month</label><select id="end-date-month-${i}"><option value="">Select</option><option>January</option><option>March</option><option>December</option></select></div>
+      <div class="field"><label for="end-date-year-${i}">End date year</label><input id="end-date-year-${i}" type="number"></div>
+      <div class="field"><input type="checkbox" id="current-role-${i}_1" name="current-role-${i}"><label for="current-role-${i}_1">Current role</label></div>`;
+    blocks.appendChild(block);
+  }
+  addBlock();
+  document.getElementById('add-employment').addEventListener('click', () => setTimeout(addBlock, 50));
+  document.querySelector('form').addEventListener('submit', (event) => {
+    event.preventDefault();
+    document.body.dataset.submitted = 'yes';
+  });
+</script>

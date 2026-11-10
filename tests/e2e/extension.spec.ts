@@ -19,6 +19,8 @@ const LINES = [
   'EXPERIENCE',
   'Senior Software Engineer, Acme Corp   Jan 2021 - Present',
   '- Built the billing service.',
+  'Software Engineer, Globex Inc   Mar 2018 - Dec 2020',
+  '- Built the ledger.',
   '',
   'EDUCATION',
   'University of Texas at Austin',
@@ -202,6 +204,25 @@ test('fills education dates under a styled section title', async ({ shared: cont
   await expect(target.locator('[id="discipline--0"]')).toHaveValue('Computer Science');
   await expect(target.locator('[id="start-year--0"]')).toHaveValue('2014');
   await expect(target.locator('[id="end-year--0"]')).toHaveValue('2018');
+  await target.close();
+  await panel.close();
+});
+
+test('adds a work block for each job and ticks current role', async ({ shared: context, extensionId }) => {
+  const { target, panel } = await openPanelFor(context, extensionId, `${BASE}/add-another.html`);
+  await scanAndFill(panel);
+  await expect(target.locator('[id="company-name-1"]')).toHaveValue('Globex Inc');
+  await expect(target.locator('[id="company-name-0"]')).toHaveValue('Acme Corp');
+  await expect(target.locator('[id="title-1"]')).toHaveValue('Software Engineer');
+  await expect(target.locator('[id="start-date-month-1"]')).toHaveValue('March');
+  await expect(target.locator('[id="end-date-year-1"]')).toHaveValue('2020');
+  await expect(target.locator('[id="current-role-0_1"]')).toBeChecked();
+  await expect(target.locator('[id="current-role-1_1"]')).not.toBeChecked();
+  await expect(target.locator('[id="company-name-2"]')).toHaveCount(0);
+  await expect(target.locator('#question_1')).toHaveValue('Jordan');
+  await expect(target.locator('#question_2')).toHaveValue('Avery');
+  await expect(target.locator('body')).not.toHaveAttribute('data-submitted', 'yes');
+  await expect(panel.locator('#status')).toContainText('added 1 work block');
   await target.close();
   await panel.close();
 });

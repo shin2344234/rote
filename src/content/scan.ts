@@ -56,7 +56,7 @@ function isSiteChrome(el: Element): boolean {
   return Boolean(form && /newsletter|subscribe|mailing.?list/i.test(`${form.id} ${form.className} ${form.getAttribute('action') ?? ''}`));
 }
 
-function isVisible(el: HTMLElement, minimum = 2): boolean {
+export function isVisible(el: HTMLElement, minimum = 2): boolean {
   const rect = el.getBoundingClientRect();
   return rect.width >= minimum && rect.height >= minimum && el.checkVisibility({ visibilityProperty: true });
 }
@@ -101,7 +101,7 @@ function isStyledHeading(el: Element): boolean {
   return text.length > 0 && text.length <= 60;
 }
 
-function sectionOf(el: Element): string {
+export function sectionOf(el: Element): string {
   const heading = 'h1,h2,h3,h4,h5,h6,legend,[role=heading]';
   let node: Element | null = el;
   for (let depth = 0; node && depth < 12; depth++) {

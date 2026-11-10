@@ -32,6 +32,8 @@ export function valueFor(entry: CatalogEntry, index: number, profile: Profile, f
   if (group === 'work' || group === 'edu') {
     const record = (group === 'work' ? profile.work[index] : profile.education[index]) as unknown as Record<string, string> | undefined;
     if (!record) return '';
+    // A single "Current role" box is ticked by choosing its own label.
+    if (sub === 'current') return record.current ? field.options[0] ?? '' : '';
     const part = sub.match(/^(start|end)(Month|Year)$/);
     if (part) return datePart(record[part[1]], part[2] as 'Month' | 'Year');
     if (sub === 'start' || sub === 'end') return formatDate(record[sub], field);
@@ -113,7 +115,7 @@ export function buildPlan(fields: ScannedField[], context: PlanContext): PlanRow
       row.reason = 'Sensitive identifier. This tool never stores or fills these.';
       return row;
     }
-    if (field.kind === 'checkbox' && field.options.length < 2) {
+    if (field.kind === 'checkbox' && field.options.length < 2 && candidates[0]?.key !== 'work.current') {
       row.reason = 'Single checkboxes are often consent statements, so they are left for you.';
       return row;
     }
@@ -146,7 +148,9 @@ export function buildPlan(fields: ScannedField[], context: PlanContext): PlanRow
 
     const slot = `${entry.key}:${row.index}`;
     const holder = claimed.get(slot);
-    if (holder && !entry.allowDuplicates) {
+    // Forms often ask for the legal name again further down, and both questions want an answer.
+    const legalAgain = holder && /\blegal\b/i.test(`${row.label} ${holder.row.label}`);
+    if (holder && !entry.allowDuplicates && !legalAgain) {
       const loser = top.raw > holder.raw ? holder.row : row;
       if (top.raw > holder.raw) claimed.set(slot, { row, raw: top.raw });
       loser.status = 'unmatched';
@@ -169,7 +173,7 @@ export function buildPlan(fields: ScannedField[], context: PlanContext): PlanRow
     const value = valueFor(entry, row.index, context.profile, field);
     row.value = value;
     row.status = classify(field, entry, value, top.score);
-    if (row.status === 'missing') row.reason = 'Your profile has no value for this.';
+    if (row.status === 'missing') row.reason = entry.key === 'work.current' ? 'This job is not marked as your current one.' : 'Your profile has no value for this.';
     if (row.status === 'existing') row.reason = 'The page already has a value.';
     if (row.status === 'no-option') row.reason = 'None of the choices on the page fit your saved answer.';
     if (row.status === 'confirm') row.reason = 'Sensitive answer. Confirm it for this application.';

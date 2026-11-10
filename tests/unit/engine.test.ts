@@ -280,6 +280,18 @@ describe('buildPlan', () => {
     expect(names[1]).toMatchObject({ status: 'unmatched', key: '', keyLabel: '' });
   });
 
+  it('fills a legal name question even after the plain name field', () => {
+    const rows = plan([field({ label: 'First Name' }), field({ label: 'What is your legal first name?' })]);
+    expect(rows.map((row) => [row.key, row.status])).toEqual([['firstName', 'ready'], ['firstName', 'ready']]);
+  });
+
+  it('ticks a single current role box only for the current job', () => {
+    const box = (name: string) => field({ name, id: `${name}_1`, label: 'Current role', section: 'Employment' }, { kind: 'checkbox', options: ['Current role'] });
+    const rows = plan([box('current-role-0'), box('current-role-1')]);
+    expect(rows.map((row) => row.key)).toEqual(['work.current', 'work.current']);
+    expect(rows.map((row) => [row.value, row.status])).toEqual([['Current role', 'ready'], ['', 'missing']]);
+  });
+
   it('finds answer bank entries by similar wording', () => {
     const bank = [{ id: '1', question: 'q', normalized: 'why do you want to work here', answer: 'a', updatedAt: 0 }];
     expect(findBankAnswer('Why do you want to work here?', bank)?.answer).toBe('a');

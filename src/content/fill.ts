@@ -4,7 +4,7 @@ import { CATALOG_BY_KEY } from '../engine/catalog';
 import { chooseAddress, chooseOption, PLACEHOLDER_OPTION, savedChoices, searchQueries } from '../engine/options';
 import { createLogger, errorData } from '../shared/log';
 import type { AddressPlace, FilePayload, FillItem, FillResult } from '../shared/types';
-import { chipElements, chipText, chosenChips, clean, comboboxHasValue, handles, optionLabel, selectHasValue, shownValue, type Handle } from './scan';
+import { chipElements, chipText, chosenChips, clean, comboboxHasValue, handles, isVisible, optionLabel, sectionOf, selectHasValue, shownValue, type Handle } from './scan';
 
 let currentRun: string | undefined;
 const log = createLogger('fill', () => currentRun);
@@ -609,6 +609,50 @@ export function findLostFields(fields: { fieldId: string; chosen?: string }[]): 
     const edited = [handle.el, ...handle.optionEls].some((el) => userEdited.has(el));
     return !edited && !stillHolds(fieldId, handle, chosen);
   }).map(({ fieldId }) => fieldId);
+}
+
+const ADD_GENERIC = /^\+?\s*add\s*(another|more|new|one more)?\b|^\+$/i;
+const ADD_WORDS = {
+  work: /employ|experience|work|job|position|role/i,
+  education: /educat|school|degree|college|universit|qualification/i,
+};
+
+function buttonText(el: HTMLElement): string {
+  return clean(el.textContent || el.getAttribute('aria-label') || el.getAttribute('title'));
+}
+
+// Finds the button that adds another work or education block next to a field of the last block.
+function findAddButton(field: HTMLElement, group: 'work' | 'education'): HTMLElement | null {
+  const words = ADD_WORDS[group];
+  const other = ADD_WORDS[group === 'work' ? 'education' : 'work'];
+  const fieldSection = sectionOf(field);
+  let node: HTMLElement | null = field.parentElement;
+  for (let depth = 0; node && depth < 12; depth++, node = node.parentElement) {
+    const buttons = Array.from(node.querySelectorAll<HTMLElement>('button, [role=button], a'));
+    const found = buttons.find((button) => {
+      if (button.matches('[type=submit], [disabled], [aria-disabled=true]') || !isVisible(button)) return false;
+      const text = buttonText(button);
+      if (text.length > 60 || !/\badd\b|^\+/i.test(text)) return false;
+      if (other.test(text) && !words.test(text)) return false;
+      if (words.test(text)) return true;
+      return ADD_GENERIC.test(text) && sectionOf(button) === fieldSection;
+    });
+    if (found) return found;
+  }
+  return null;
+}
+
+// Clicks "Add another" for a repeating section. Rote never clicks submit, and this never matches one.
+export async function addRow(fieldId: string, group: 'work' | 'education'): Promise<{ clicked: boolean; label: string }> {
+  const handle = handles.get(fieldId);
+  if (!handle || !handle.el.isConnected) return { clicked: false, label: '' };
+  const button = findAddButton(handle.el, group);
+  if (!button) return { clicked: false, label: '' };
+  const label = buttonText(button);
+  pressSequence(button);
+  await waitForSettle(400, 4000);
+  log.info('row.added', { group, label });
+  return { clicked: true, label };
 }
 
 export function showField(fieldId: string): boolean {

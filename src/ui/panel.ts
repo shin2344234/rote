@@ -247,6 +247,46 @@ async function watchFilled(duration: number): Promise<void> {
   }
 }
 
+const MAX_ADDED_ROWS = 10;
+const GROUPS = [
+  { group: 'work' as const, prefix: 'work.', noun: ['work block', 'work blocks'] },
+  { group: 'education' as const, prefix: 'edu.', noun: ['education block', 'education blocks'] },
+];
+
+// Forms like Greenhouse show one work block until "Add another" is clicked, so the rest of the profile had nowhere to go.
+async function addMissingRows(): Promise<string[]> {
+  const profile = await getProfile();
+  const summary: string[] = [];
+  for (const { group, prefix, noun } of GROUPS) {
+    const wanted = group === 'work' ? profile.work.length : profile.education.length;
+    let count = 0;
+    for (let attempt = 0; attempt < MAX_ADDED_ROWS; attempt++) {
+      const groupRows = rows.filter((row) => row.key.startsWith(prefix));
+      if (!groupRows.length) break;
+      const last = groupRows.reduce((best, row) => (row.index > best.index ? row : best));
+      if (last.index + 1 >= wanted) break;
+      const reply = await send<{ clicked: boolean; label: string }>(last.frameId, { type: 'addRow', runId, fieldId: last.fieldId, group });
+      if (!reply?.clicked) {
+        log.info('rows.noAddButton', { group, shown: last.index + 1, wanted });
+        break;
+      }
+      await rescanKeeping((row) => Boolean(row.result || row.claude));
+      const grown = rows.filter((row) => row.key.startsWith(prefix)).reduce((max, row) => Math.max(max, row.index), -1);
+      if (grown <= last.index) {
+        log.warn('rows.notGrown', { group, label: reply.label });
+        break;
+      }
+      count++;
+      await fillRows(rows.filter((row) => row.key.startsWith(prefix) && row.index > last.index && FILLABLE.has(row.status) && !row.result?.ok));
+    }
+    if (count) {
+      log.info('rows.added', { group, count, wanted });
+      summary.push(`${count} ${noun[count === 1 ? 0 : 1]}`);
+    }
+  }
+  return summary;
+}
+
 async function fill(): Promise<void> {
   watchToken++;
   log.info('fill.start', { planned: countBy(rows.map((row) => row.status)) });
@@ -259,6 +299,8 @@ async function fill(): Promise<void> {
     const row = rows.find((candidate) => candidate.key === uploadRowKey);
     if (row) row.result = uploadResult;
   }
+  const added = await addMissingRows();
+  if (added.length) setNotice(`Rote added ${added.join(' and ')} so every entry in your profile has a place. Undo clears them but leaves the blocks on the page.`);
   const failed = rows.filter((row) => row.result && !row.result.ok);
   log.info('fill.done', {
     attempted: results.length,

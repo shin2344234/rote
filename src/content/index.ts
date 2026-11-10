@@ -1,7 +1,7 @@
 // Injected into every frame when the user clicks Scan. Never runs on its own.
 import { createLogger, errorData, stripUrl } from '../shared/log';
 import type { ContentRequest } from '../shared/types';
-import { fillItems, findLostFields, readField, sentFileId, setRun, showField, trackUserEdits, undoAll, uploadFile, waitForSettle } from './fill';
+import { addRow, fillItems, findLostFields, readField, sentFileId, setRun, showField, trackUserEdits, undoAll, uploadFile, waitForSettle } from './fill';
 import { scanFrame } from './scan';
 
 declare global {
@@ -45,6 +45,8 @@ async function handle(request: ContentRequest): Promise<unknown> {
       return readField(request.fieldId);
     case 'show':
       return showField(request.fieldId);
+    case 'addRow':
+      return addRow(request.fieldId, request.group);
   }
 }
 

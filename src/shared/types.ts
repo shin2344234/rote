@@ -215,4 +215,5 @@ export type ContentRequest =
   | { type: 'undo'; runId: string }
   | { type: 'check'; runId: string; fields: { fieldId: string; chosen?: string }[] }
   | { type: 'read'; runId: string; fieldId: string }
-  | { type: 'show'; runId: string; fieldId: string };
+  | { type: 'show'; runId: string; fieldId: string }
+  | { type: 'addRow'; runId: string; fieldId: string; group: 'work' | 'education' };
