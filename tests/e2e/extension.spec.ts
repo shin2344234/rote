@@ -251,7 +251,7 @@ test('adds a work block for each job and ticks current role', async ({ shared: c
   await panel.close();
 });
 
-test('saves a typed answer and suggests it on the next scan', async ({ shared: context, extensionId }) => {
+test('saves a typed answer and fills it on the next scan', async ({ shared: context, extensionId }) => {
   const { target, panel } = await openPanelFor(context, extensionId, `${BASE}/plain.html`);
   await panel.click('#scan');
   await expect(panel.locator('#fill')).toBeEnabled();
@@ -262,9 +262,9 @@ test('saves a typed answer and suggests it on the next scan', async ({ shared: c
   await target.reload();
   await panel.click('#scan');
   const row = panel.locator('.row', { hasText: 'Why do you want to work here?' });
-  await expect(row).toContainText('Saved answer');
+  await expect(row).toContainText('From your answer bank');
   await expect(target.locator('#why')).toHaveValue('');
-  await row.getByRole('button', { name: 'Use saved answer' }).click();
+  await panel.click('#fill');
   await expect(target.locator('#why')).toHaveValue('I like your mission.');
   await target.close();
   await panel.close();
@@ -403,6 +403,33 @@ test('fills a street address search box and picks the suggestion in the right to
   await expect(target.locator('#picked-city')).toHaveText('Austin');
   await target.close();
   await panel.close();
+});
+
+test('hides the AI buttons until an AI tool is connected and links to the setup', async ({ shared: context, extensionId }) => {
+  const { target, panel } = await openPanelFor(context, extensionId, `${BASE}/questions.html`);
+  await panel.click('#scan');
+  await expect(panel.locator('#fill')).toBeEnabled();
+  await expect(panel.locator('#review')).toBeHidden();
+  await expect(panel.getByRole('button', { name: /Draft reply/ })).toHaveCount(0);
+  await expect(panel.locator('#ai-setup')).toBeVisible();
+
+  const [options] = await Promise.all([context.waitForEvent('page'), panel.click('#ai-setup-link')]);
+  await expect(options).toHaveURL(/options\.html#ai$/);
+  await expect(options.locator('#claude-mode')).toBeFocused();
+  await expect(options.locator('#claude-mode')).toBeInViewport();
+
+  await options.selectOption('#claude-mode', 'bridge');
+  await options.click('#claude-save');
+  await panel.evaluate(() => window.dispatchEvent(new Event('focus')));
+  await expect(panel.locator('#ai-setup')).toBeHidden();
+  await expect(panel.locator('#review')).toBeVisible();
+  await expect(panel.getByRole('button', { name: 'Draft reply with Claude' }).first()).toBeVisible();
+
+  await options.selectOption('#claude-mode', 'off');
+  await options.click('#claude-save');
+  await panel.evaluate(() => window.dispatchEvent(new Event('focus')));
+  await expect(panel.locator('#ai-setup')).toBeVisible();
+  await Promise.all([options.close(), target.close(), panel.close()]);
 });
 
 test('keeps a connection choice made as the options page opens', async ({ shared: context, extensionId }) => {
@@ -637,7 +664,7 @@ test('applies every saved choice to a checkbox group and undoes them together', 
 
   await target.reload();
   await panel.click('#scan');
-  await expect(row).toContainText('Saved answer');
+  await expect(row).toContainText('From your answer bank');
   await box('wed').check();
   await row.getByRole('button', { name: 'Use saved answer' }).click();
   await expect(box('mon')).toBeChecked();
@@ -665,7 +692,7 @@ test('applies every saved choice to a multi-select list and undoes them together
 
   await target.reload();
   await panel.click('#scan');
-  await expect(row).toContainText('Saved answer');
+  await expect(row).toContainText('From your answer bank');
   await list.selectOption(['East']);
   await row.getByRole('button', { name: 'Use saved answer' }).click();
   await expect.poll(chosen).toEqual(['North', 'West']);
@@ -691,7 +718,7 @@ test('picks every saved choice in a custom list that closes after each pick', as
 
   await target.reload();
   await panel.click('#scan');
-  await expect(row).toContainText('Saved answer');
+  await expect(row).toContainText('From your answer bank');
   await pick('Data');
   await row.getByRole('button', { name: 'Use saved answer' }).click();
   await expect(chips).toHaveText(['Platform', 'Security'], { timeout: 10000 });
@@ -730,7 +757,7 @@ test('replaces chips in a custom list that hides picked items from its menu', as
 
   await target.reload();
   await panel.click('#scan');
-  await expect(row).toContainText('Saved answer');
+  await expect(row).toContainText('From your answer bank');
   await pick('Figma');
   await pick('Canva');
   await row.getByRole('button', { name: 'Use saved answer' }).click();
@@ -995,7 +1022,7 @@ test('keeps an exact saved choice when a form offers only part of the saved list
 
   await target.goto('http://fixture.test/focus-part.html');
   await panel.click('#scan');
-  await expect(row).toContainText('Saved answer');
+  await expect(row).toContainText('From your answer bank');
   await row.getByRole('button', { name: 'Use saved answer' }).click();
   await expect.poll(() => list.evaluate((el: HTMLSelectElement) => Array.from(el.selectedOptions, (option) => option.value))).toEqual(['Data, Analytics']);
   await context.unroute('http://fixture.test/focus-*.html', pageRoute);
@@ -1276,6 +1303,132 @@ test('shows the version and asks for an update only when a newer release is out'
 
   await context.route(RELEASES, (route) => route.fulfill({ json: { tag_name: `v${VERSION}` } }));
   await clear(panel);
+  await target.close();
+  await panel.close();
+});
+
+test('lists each filled application and keeps the status the user sets', async ({ shared: context, extensionId }) => {
+  const { target, panel } = await openPanelFor(context, extensionId, `${BASE}/plain.html`);
+  const [options] = await Promise.all([context.waitForEvent('page'), panel.click('#applications')]);
+  await expect(options).toHaveURL(`chrome-extension://${extensionId}/applications.html`);
+  // A second click brings the same tab forward instead of opening another.
+  const pages = context.pages().length;
+  await panel.click('#applications');
+  await panel.waitForTimeout(300);
+  expect(context.pages()).toHaveLength(pages);
+
+  // Earlier tests filled this page too, so the list starts from scratch here.
+  options.on('dialog', (dialog) => void dialog.accept());
+  const app = options.locator('#apps .entry', { hasText: 'Plain form' });
+  while (await app.count()) await app.first().getByRole('button', { name: 'Delete' }).click();
+  await expect(app).toHaveCount(0);
+  await scanAndFill(panel);
+  await expect(panel.locator('#status')).toContainText('Added to your applications');
+  await options.reload();
+  await expect(app).toHaveCount(1);
+  await expect(app).toContainText('localhost:4173');
+  await expect(app.locator('a')).toHaveAttribute('href', `${BASE}/plain.html`);
+  await app.locator('select').selectOption('applied');
+  await app.locator('input').fill('Recruiter is Sam');
+  await app.locator('input').blur();
+
+  // A reload inside the panel's post-fill watch gets refilled on its own, so the second fill uses a new tab.
+  await Promise.all([target.close(), panel.close()]);
+  const again = await openPanelFor(context, extensionId, `${BASE}/plain.html`);
+  await scanAndFill(again.panel);
+  await options.reload();
+  await expect(app).toHaveCount(1);
+  await expect(app).toContainText('2 times');
+  await expect(app.locator('select')).toHaveValue('applied');
+  await expect(app.locator('input')).toHaveValue('Recruiter is Sam');
+  await expect(options.locator('#app-filters [data-status=applied]')).toContainText('1');
+  await options.click('#app-filters [data-status=applied]');
+  await expect(options.locator('#apps .entry')).toHaveCount(1);
+  await expect(app).toHaveCount(1);
+  await options.click('#app-filters [data-status=all]');
+
+  const [download] = await Promise.all([options.waitForEvent('download'), options.click('#apps-export')]);
+  const csv = readFileSync((await download.path())!, 'utf8');
+  expect(csv.split('\r\n')[0]).toBe('Last filled,First filled,Title,Site,Address,Status,Resume,Profile,Times filled,Note');
+  expect(csv).toContain(`Plain form,localhost:4173,${BASE}/plain.html,Applied,`);
+  expect(csv).toContain(',Main profile,2,Recruiter is Sam');
+  await Promise.all([options.close(), again.target.close(), again.panel.close()]);
+});
+
+test('learns a changed profile field and a typed answer from Save my edits', async ({ shared: context, extensionId }) => {
+  const { target, panel } = await openPanelFor(context, extensionId, `${BASE}/plain.html`);
+  await scanAndFill(panel);
+  await expect(target.locator('#ln')).toHaveValue('Avery');
+  await target.fill('#ln', 'Avery-Lee');
+  await target.fill('#phone', '512-555-0147');
+  await target.fill('#why', 'Your payments team.');
+  await panel.click('#learn');
+  const group = panel.locator('[data-group="Your edits"]');
+  await expect(group.locator('.row')).toHaveCount(2);
+  const lastName = group.locator('.row', { hasText: 'Last Name' });
+  await expect(lastName).toContainText('Rote filled: Avery');
+  await expect(lastName).toContainText('You entered: Avery-Lee');
+  await expect(lastName.locator('.tag')).toHaveText('Profile');
+  await expect(group.locator('.row', { hasText: 'Why do you want to work here?' }).locator('.tag')).toHaveText('Answer bank');
+  await group.getByRole('button', { name: 'Save all' }).click();
+  await expect(group).toHaveCount(0);
+
+  await target.reload();
+  await scanAndFill(panel);
+  await expect(target.locator('#ln')).toHaveValue('Avery-Lee');
+  await expect(target.locator('#why')).toHaveValue('Your payments team.');
+
+  const options = await context.newPage();
+  await options.goto(`chrome-extension://${extensionId}/options.html`);
+  await expect(options.locator('[data-key=lastName]')).toHaveValue('Avery-Lee');
+  await options.fill('[data-key=lastName]', 'Avery');
+  await options.click('#save');
+  await expect(options.locator('#save-status')).toHaveText('Saved');
+  await options.close();
+  await target.close();
+  await panel.close();
+});
+
+test('fills from the profile picked in the panel, each with its own resume', async ({ shared: context, extensionId }) => {
+  const options = await context.newPage();
+  await options.goto(`chrome-extension://${extensionId}/options.html`);
+  await expect(options.locator('#profile-delete')).toBeDisabled();
+  await options.click('#profile-new');
+  await expect(options.locator('#profile-pick option')).toHaveCount(2);
+  await options.fill('#profile-name', 'Support roles');
+  await options.locator('#profile-name').blur();
+  await expect(options.locator('#profile-pick option:checked')).toHaveText('Support roles');
+  await options.fill('[data-key=firstName]', 'Jo');
+  await options.click('#save');
+  await expect(options.locator('#save-status')).toHaveText('Saved');
+  await options.locator('#profile-resume').selectOption({ label: 'jordan-avery.docx' });
+
+  const { target, panel } = await openPanelFor(context, extensionId, `${BASE}/plain.html`);
+  await expect(panel.locator('#profile-row')).toBeVisible();
+  await expect(panel.locator('#profile option:checked')).toHaveText('Support roles');
+  await expect(panel.locator('#resume option:checked')).toHaveText('jordan-avery.docx');
+  await scanAndFill(panel);
+  await expect(target.locator('#fn')).toHaveValue('Jo');
+  expect(await target.locator('#resume').evaluate((input: HTMLInputElement) => input.files![0]?.name)).toBe('jordan-avery.docx');
+
+  await panel.locator('#profile').selectOption({ label: 'Main profile' });
+  await expect(panel.locator('#status')).toContainText('Using Main profile');
+  await expect(panel.locator('#report')).toBeEmpty();
+  await target.reload();
+  await scanAndFill(panel);
+  await expect(target.locator('#fn')).toHaveValue('Jordan');
+
+  await options.reload();
+  await expect(options.locator('[data-key=firstName]')).toHaveValue('Jordan');
+  await options.locator('#profile-pick').selectOption({ label: 'Support roles' });
+  await expect(options.locator('[data-key=firstName]')).toHaveValue('Jo');
+  options.once('dialog', (dialog) => void dialog.accept());
+  await options.click('#profile-delete');
+  await expect(options.locator('#profile-pick option')).toHaveCount(1);
+  await expect(options.locator('[data-key=firstName]')).toHaveValue('Jordan');
+  await panel.reload();
+  await expect(panel.locator('#profile-row')).toBeHidden();
+  await options.close();
   await target.close();
   await panel.close();
 });

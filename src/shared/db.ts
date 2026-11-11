@@ -1,25 +1,29 @@
 // IndexedDB storage. Only extension pages and the service worker touch this.
 // Content scripts never read the profile. They receive only the values being filled.
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
-import type { BankAnswer, ClaudeSettings, LogEntry, Profile, StoredResume } from './types';
+import type { Application, BankAnswer, ClaudeSettings, LogEntry, Profile, ProfileInfo, StoredResume } from './types';
 
 interface Schema extends DBSchema {
   kv: { key: string; value: unknown };
   resumes: { key: string; value: StoredResume };
   answers: { key: string; value: BankAnswer };
   logs: { key: number; value: LogEntry };
+  applications: { key: string; value: Application };
 }
 
 const MAX_LOGS = 20000;
 let handle: Promise<IDBPDatabase<Schema>> | undefined;
 
 function db() {
-  handle ??= openDB<Schema>('resume-autofill', 1, {
-    upgrade(database) {
-      database.createObjectStore('kv');
-      database.createObjectStore('resumes', { keyPath: 'id' });
-      database.createObjectStore('answers', { keyPath: 'id' });
-      database.createObjectStore('logs', { autoIncrement: true });
+  handle ??= openDB<Schema>('resume-autofill', 2, {
+    upgrade(database, oldVersion) {
+      if (oldVersion < 1) {
+        database.createObjectStore('kv');
+        database.createObjectStore('resumes', { keyPath: 'id' });
+        database.createObjectStore('answers', { keyPath: 'id' });
+        database.createObjectStore('logs', { autoIncrement: true });
+      }
+      if (oldVersion < 2) database.createObjectStore('applications', { keyPath: 'id' });
     },
   });
   return handle;
@@ -29,12 +33,64 @@ export function emptyProfile(): Profile {
   return { fields: {}, work: [], education: [], skills: [], updatedAt: 0 };
 }
 
-export async function getProfile(): Promise<Profile> {
-  return ((await (await db()).get('kv', 'profile')) as Profile | undefined) ?? emptyProfile();
+export const MAIN_PROFILE = 'main';
+
+// The first profile keeps the key it had before there were several, so an update finds it.
+const profileKey = (id: string) => (id === MAIN_PROFILE ? 'profile' : `profile:${id}`);
+
+export async function listProfiles(): Promise<ProfileInfo[]> {
+  const saved = (await (await db()).get('kv', 'profiles')) as ProfileInfo[] | undefined;
+  return saved?.length ? saved : [{ id: MAIN_PROFILE, name: 'Main profile' }];
 }
 
-export async function saveProfile(profile: Profile): Promise<void> {
-  await (await db()).put('kv', { ...profile, updatedAt: Date.now() }, 'profile');
+async function saveProfileList(list: ProfileInfo[]): Promise<void> {
+  await (await db()).put('kv', list, 'profiles');
+}
+
+export async function activeProfileId(): Promise<string> {
+  const id = (await (await db()).get('kv', 'activeProfile')) as string | undefined;
+  const list = await listProfiles();
+  return list.some((info) => info.id === id) ? id! : list[0].id;
+}
+
+export async function activeProfileInfo(): Promise<ProfileInfo> {
+  const id = await activeProfileId();
+  return (await listProfiles()).find((info) => info.id === id)!;
+}
+
+export async function setActiveProfile(id: string): Promise<void> {
+  await (await db()).put('kv', id, 'activeProfile');
+}
+
+// Starts from a copy of an existing profile, since most details stay the same across roles.
+export async function createProfile(name: string, copy: Profile): Promise<string> {
+  const id = crypto.randomUUID();
+  const list = await listProfiles();
+  await (await db()).put('kv', { ...structuredClone(copy), updatedAt: Date.now() }, profileKey(id));
+  await saveProfileList([...list, { id, name }]);
+  return id;
+}
+
+export async function updateProfileInfo(id: string, change: Partial<Omit<ProfileInfo, 'id'>>): Promise<void> {
+  await saveProfileList((await listProfiles()).map((info) => (info.id === id ? { ...info, ...change } : info)));
+}
+
+export async function deleteProfile(id: string): Promise<void> {
+  const list = await listProfiles();
+  if (list.length < 2) throw new Error('The last profile cannot be deleted.');
+  const rest = list.filter((info) => info.id !== id);
+  await (await db()).delete('kv', profileKey(id));
+  await saveProfileList(rest);
+  if ((await (await db()).get('kv', 'activeProfile')) === id) await setActiveProfile(rest[0].id);
+}
+
+export async function getProfile(id?: string): Promise<Profile> {
+  const key = profileKey(id ?? await activeProfileId());
+  return ((await (await db()).get('kv', key)) as Profile | undefined) ?? emptyProfile();
+}
+
+export async function saveProfile(profile: Profile, id?: string): Promise<void> {
+  await (await db()).put('kv', { ...profile, updatedAt: Date.now() }, profileKey(id ?? await activeProfileId()));
 }
 
 export async function getClaudeSettings(): Promise<ClaudeSettings> {
@@ -66,6 +122,8 @@ export async function setDefaultResume(id: string): Promise<void> {
 export async function deleteResume(id: string): Promise<void> {
   const database = await db();
   await database.delete('resumes', id);
+  const list = await listProfiles();
+  if (list.some((info) => info.resumeId === id)) await saveProfileList(list.map((info) => (info.resumeId === id ? { ...info, resumeId: undefined } : info)));
   const rest = await database.getAll('resumes');
   if (rest.length && !rest.some((resume) => resume.isDefault)) await setDefaultResume(rest[0].id);
 }
@@ -80,6 +138,36 @@ export async function putAnswer(answer: BankAnswer): Promise<void> {
 
 export async function deleteAnswer(id: string): Promise<void> {
   await (await db()).delete('answers', id);
+}
+
+// A multi-step form keeps its title as the steps change the address, so a fill with the
+// same host and title soon after the last one is the same application.
+const SAME_APPLICATION_MS = 6 * 3600000;
+
+export async function recordApplication(seen: Pick<Application, 'url' | 'host' | 'title' | 'resume' | 'profile'>, now = Date.now()): Promise<Application> {
+  const database = await db();
+  const all = await database.getAll('applications');
+  const match = all.find((app) => app.url === seen.url)
+    ?? all.find((app) => app.host === seen.host && app.title === seen.title && now - app.lastFilled < SAME_APPLICATION_MS);
+  const app: Application = match
+    ? { ...match, lastFilled: now, fills: match.fills + 1, resume: seen.resume || match.resume }
+    : { id: crypto.randomUUID(), ...seen, firstFilled: now, lastFilled: now, fills: 1, status: 'filled', note: '' };
+  await database.put('applications', app);
+  return app;
+}
+
+export async function listApplications(): Promise<Application[]> {
+  return (await (await db()).getAll('applications')).sort((a, b) => b.lastFilled - a.lastFilled);
+}
+
+export async function updateApplication(id: string, change: Partial<Pick<Application, 'status' | 'note'>>): Promise<void> {
+  const database = await db();
+  const app = await database.get('applications', id);
+  if (app) await database.put('applications', { ...app, ...change });
+}
+
+export async function deleteApplication(id: string): Promise<void> {
+  await (await db()).delete('applications', id);
 }
 
 const PRUNE_EVERY = 500;

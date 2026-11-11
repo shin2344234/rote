@@ -6,7 +6,10 @@
   <link rel="stylesheet" href="ui.css">
 </head>
 <body class="options">
-  <h1>Rote</h1>
+  <header class="page-head">
+    <h1>Rote</h1>
+    <a href="applications.html">Applications</a>
+  </header>
   <section class="card">
     <h2>Resumes</h2>
     <p class="muted">PDF, DOCX or TXT. Files and parsed data stay in this browser.</p>
@@ -14,6 +17,7 @@
     <div id="resumes"></div>
     <div id="parse-report"></div>
   </section>
+  <section class="card" id="profiles"></section>
   <section class="card" id="gaps"></section>
   <form id="profile"></form>
   <section class="card">
@@ -21,7 +25,7 @@
     <p class="muted">Saved from the side panel. Suggested when the same question appears again.</p>
     <div id="answers"></div>
   </section>
-  <section class="card">
+  <section class="card" id="ai">
     <h2>AI review</h2>
     <p class="muted">The Review missed button sends your whole profile and answer bank, including contact details, salary and EEO answers, along with the question text from the page. It all goes to the provider you pick here, and nothing goes out until you click that button. A local model such as Ollama keeps it on this PC.</p>
     <label class="muted" for="claude-mode">Connection</label>

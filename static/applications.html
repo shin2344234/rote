@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Rote applications</title>
+  <link rel="stylesheet" href="ui.css">
+</head>
+<body class="options apps-page">
+  <header class="page-head">
+    <h1>Rote</h1>
+    <a href="options.html">Profile and logs</a>
+  </header>
+  <div class="apps-intro">
+    <h2 class="page-title">Applications</h2>
+    <button id="apps-export" type="button">Export CSV</button>
+  </div>
+  <p class="muted">Every page Rote fills is listed here. Rote never submits, so set the status yourself once you send one. The list stays in this browser.</p>
+  <div id="app-filters" class="filters" role="group" aria-label="Show applications by status"></div>
+  <section class="card" id="apps"></section>
+  <script type="module" src="applications.js"></script>
+</body>
+</html>

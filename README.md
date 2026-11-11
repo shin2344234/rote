@@ -58,9 +58,23 @@ On an application page, click Scan page, then Fill form. Green means it's confid
 
 The tool never clicks submit, never solves a CAPTCHA, and never stores or fills SSNs, dates of birth, passwords or bank details. Single checkboxes stay untouched because they are usually consent statements.
 
+### Teaching Rote your answers
+
+After you fix a field Rote filled, or fill one it left for you, click Save my edits. The panel reads the fields back from the page and lists each one you changed, with what Rote filled and what you entered. Save to profile updates a plain profile field such as your last name or headline, so every site gets the new value. Everything else, including any question with a list of choices, goes to the answer bank under the question's wording. Skip leaves one out, and Save all keeps the whole list. Work and education rows aren't listed, because their labels repeat for every job and a saved answer couldn't tell them apart.
+
+When a later form asks a question in exactly the words of a saved answer, Rote fills it on its own and marks it Check. A question worded only close to a saved one gets the answer as a suggestion, and Use saved answer puts it on the page.
+
+### Profiles
+
+Profiles keep separate details for different kinds of jobs, such as a frontend resume and a support resume. Under Profiles in Profile and logs, New profile from this one copies the profile you are editing. Give it a name, edit its details and history, and pick its resume. Once there are two profiles, the side panel shows a Profile list above the resume. Picking one there switches the resume too, and you scan again to fill with it. The answer bank is shared by every profile.
+
+### Applications
+
+Each page Rote fills goes on the Applications page, which the Applications button at the top of the side panel opens. Each entry has the page title, site, date, resume and profile. Filling the same page again, or the next step of the same form, counts as the same application. Rote never submits, so every entry starts as Filled, not sent, and you set the status yourself: Applied, Interviewing, Offer, Rejected or Withdrawn. You can add a note to each one, and the buttons above the list show one status at a time. Export CSV downloads the list for a spreadsheet. The list stays in this browser and leaves it only in a file you export.
+
 ## AI review
 
-The review works with Claude, with other hosted providers, and with a model running on this PC. The button and the messages name whichever one you picked, so the examples below say Claude.
+The review works with Claude, with other hosted providers, and with a model running on this PC. The button and the messages name whichever one you picked, so the examples below say Claude. Until you connect one, the side panel hides the AI buttons and shows a Connect an AI tool link instead, which opens this section of Profile and logs.
 
 Review missed with Claude sends the fields the tool could not answer to Claude, along with your whole profile and answer bank. Claude answers only from that data. Each answer goes onto the page, then waits in the side panel. Edit it if it is wrong, then click Save answer to keep it in the answer bank or Use without saving to keep it for this application only.
 

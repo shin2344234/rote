@@ -90,6 +90,29 @@ export interface StoredResume {
   isDefault: boolean;
 }
 
+export interface ProfileInfo {
+  id: string;
+  name: string;
+  // The resume the panel picks when this profile is chosen.
+  resumeId?: string;
+}
+
+export type ApplicationStatus = 'filled' | 'applied' | 'interviewing' | 'offer' | 'rejected' | 'withdrawn';
+
+export interface Application {
+  id: string;
+  url: string; // Origin and path only.
+  host: string;
+  title: string;
+  resume: string;
+  profile: string;
+  firstFilled: number;
+  lastFilled: number;
+  fills: number;
+  status: ApplicationStatus;
+  note: string;
+}
+
 export interface BankAnswer {
   id: string;
   question: string;
@@ -133,6 +156,7 @@ export interface PlanRow {
   confirmed?: boolean;
   claude?: ClaudeReview;
   place?: AddressPlace;
+  fromBank?: boolean;
 }
 
 export interface AddressPlace {

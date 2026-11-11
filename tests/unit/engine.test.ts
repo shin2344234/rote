@@ -4,7 +4,7 @@ import { layoutPage, type PdfItem } from '../../src/parser/layout';
 import { scoreField, isBlocked, phraseScore, repeatIndex } from '../../src/engine/match';
 import { chooseAddress, chooseOption, savedChoices, searchQueries } from '../../src/engine/options';
 import { buildPlan, findBankAnswer, profileGaps } from '../../src/engine/plan';
-import { readDate, storedDate } from '../../src/engine/text';
+import { normalize, readDate, storedDate } from '../../src/engine/text';
 import { canDraft, needsReview, parseReview } from '../../src/engine/review';
 import { redact } from '../../src/shared/log';
 import type { FieldSignals, PlanRow, Profile, ScannedField } from '../../src/shared/types';
@@ -327,6 +327,32 @@ describe('buildPlan', () => {
     const bank = [{ id: '1', question: 'q', normalized: 'why do you want to work here', answer: 'a', updatedAt: 0 }];
     expect(findBankAnswer('Why do you want to work here?', bank)?.answer).toBe('a');
     expect(findBankAnswer('Why are you leaving your job?', bank)).toBeUndefined();
+  });
+
+  it('fills an answer saved for the exact question and only suggests a near match', () => {
+    const bank = [
+      { id: '1', question: 'q', normalized: normalize('Why do you want to work here?'), answer: 'Mission', updatedAt: 0 },
+      { id: '2', question: 'q', normalized: normalize('Are you authorized to work here?'), answer: 'No', updatedAt: 0 },
+    ];
+    const rows = buildPlan([
+      field({ label: 'Why do you want to work here?' }, { fieldId: 'a', kind: 'textarea' }),
+      field({ label: 'Why do you want to work here today?' }, { fieldId: 'b', kind: 'textarea' }),
+      field({ legend: 'Are you authorized to work here?' }, { fieldId: 'c', kind: 'radio', options: ['Yes', 'No'] }),
+      field({ legend: 'Are you authorized to work here?' }, { fieldId: 'd', kind: 'radio', options: ['Yes', 'No'], hasValue: true }),
+    ], { profile, bank });
+    expect(rows.map((row) => [row.status, row.value, Boolean(row.fromBank)])).toEqual([
+      ['low', 'Mission', true],
+      ['suggested', 'Mission', false],
+      ['confirm', 'No', true],
+      ['existing', 'No', true],
+    ]);
+  });
+
+  it('keeps the profile when a saved answer fits none of the choices', () => {
+    const bank = [{ id: '1', question: 'q', normalized: normalize('Are you authorized to work here?'), answer: 'Maybe later', updatedAt: 0 }];
+    const [row] = buildPlan([field({ legend: 'Are you authorized to work here?' }, { kind: 'radio', options: ['Yes', 'No'] })], { profile, bank });
+    expect(row.fromBank).toBeUndefined();
+    expect(row.value).toBe('yes');
   });
 });
 

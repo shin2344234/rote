@@ -8,23 +8,30 @@
 <body class="panel">
   <header>
     <h1>Rote</h1>
-    <button id="settings" class="small">Profile and logs</button>
+    <div class="actions">
+      <button id="applications" class="small" title="Every page Rote filled, with the status you set">Applications</button>
+      <button id="settings" class="small">Profile and logs</button>
+    </div>
   </header>
   <div class="card">
+    <div id="profile-row" hidden>
+      <label class="muted" for="profile">Profile</label>
+      <select id="profile"></select>
+    </div>
     <label class="muted" for="resume">Resume to attach</label>
     <select id="resume"></select>
-    <div class="actions" style="margin-top:8px">
+    <div class="actions controls">
       <button id="scan">Scan page</button>
       <button id="fill" class="primary" disabled>Fill form</button>
       <button id="undo" disabled>Undo</button>
-    </div>
-    <div class="actions" style="margin-top:8px">
+      <button id="learn" disabled title="Reads the fields you changed or filled in yourself, so Rote can fill them next time">Save my edits</button>
       <button id="review" disabled title="Sends your whole profile to Claude, with the questions this tool could not answer">Review missed with Claude</button>
     </div>
-    <p class="muted" style="margin:8px 0 0">This tool never submits. Review the form and submit it yourself.</p>
+    <p class="refuse">Rote never submits. Review the form and submit it yourself.</p>
   </div>
   <div id="status"></div>
   <div id="report"></div>
+  <p id="ai-setup" class="ai-setup" hidden>Rote can ask an AI tool to answer the questions it skips. <a id="ai-setup-link" href="options.html#ai">Connect an AI tool</a> to turn that on.</p>
   <p style="margin:12px 0"><button id="bug" class="small" title="Opens the report form, where you can read the report before sending it">Report a bug</button></p>
   <p id="donate" class="muted" style="margin:12px 0">Rote is free. If it helps you get hired, you can <a href="https://buymeacoffee.com/SethWalker234" target="_blank" rel="noopener">buy me a coffee</a>.</p>
   <footer class="version"><span id="outdated" class="tag warn" hidden>Please update</span><a id="version" href="https://rote.walker-computers.com/#update" target="_blank" rel="noopener" title="How to update Rote"></a></footer>

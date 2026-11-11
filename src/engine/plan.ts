@@ -65,6 +65,19 @@ export function findBankAnswer(label: string, bank: BankAnswer[]): BankAnswer | 
   return best;
 }
 
+// An answer saved for this exact question. The user typed it for this wording, so it fills
+// without asking, flagged for a check. A near match only gets suggested.
+function exactBankAnswer(label: string, bank: BankAnswer[]): BankAnswer | undefined {
+  const target = normalize(label);
+  return target.length < 8 ? undefined : bank.find((answer) => answer.normalized === target);
+}
+
+const BANK_REASONS: Partial<Record<RowStatus, string>> = {
+  low: 'From your answer bank. Check this one.',
+  confirm: 'From your answer bank. Confirm it for this application.',
+  existing: 'The page already has a value.',
+};
+
 export function displayLabel(field: ScannedField): string {
   const s = field.signals;
   return s.label || s.ariaLabel || s.legend || s.nearby || s.placeholder || s.name || s.id || `(unlabeled ${field.kind})`;
@@ -125,7 +138,12 @@ export function buildPlan(fields: ScannedField[], context: PlanContext): PlanRow
 
     if (!top || top.raw < LOW_SCORE) {
       const saved = findBankAnswer(row.label, context.bank);
-      if (saved && !field.hasValue) {
+      if (saved && !field.hasValue && saved === exactBankAnswer(row.label, context.bank)) {
+        row.status = 'low';
+        row.value = saved.answer;
+        row.fromBank = true;
+        row.reason = BANK_REASONS.low!;
+      } else if (saved && !field.hasValue) {
         row.status = 'suggested';
         row.value = saved.answer;
         row.reason = 'Answer bank has a saved answer for this question.';
@@ -161,6 +179,16 @@ export function buildPlan(fields: ScannedField[], context: PlanContext): PlanRow
       if (loser === row) return row;
     } else if (!holder) {
       claimed.set(slot, { row, raw: top.raw });
+    }
+
+    const saved = entry.source === 'file' || entry.repeat ? undefined : exactBankAnswer(row.label, context.bank);
+    const bankStatus = saved && classify(field, entry, saved.answer, 0);
+    if (saved && bankStatus && bankStatus !== 'no-option') {
+      row.value = saved.answer;
+      row.fromBank = true;
+      row.status = bankStatus;
+      row.reason = BANK_REASONS[bankStatus] ?? '';
+      return row;
     }
 
     if (entry.source === 'file') {

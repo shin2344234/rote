@@ -17,6 +17,8 @@ let runId: string | undefined;
 const log = createLogger('options', () => runId);
 let draft: Profile = store.emptyProfile();
 let dirty = false;
+// The panel can switch the active profile while this page is open, so saves go to the one on screen.
+let editingId = store.MAIN_PROFILE;
 
 self.addEventListener('unhandledrejection', (event) => log.error('unhandled', errorData(event.reason)));
 
@@ -124,7 +126,7 @@ function renderProfile(): void {
 
 async function saveProfile(event: Event): Promise<void> {
   event.preventDefault();
-  await store.saveProfile(draft);
+  await store.saveProfile(draft, editingId);
   // The work and education controls hold references into this draft, so it has to stay the same object.
   draft.updatedAt = Date.now();
   dirty = false;
@@ -206,6 +208,64 @@ async function renderResumes(): Promise<void> {
       h('label', {}, h('input', { type: 'radio', name: 'default-resume', checked: resume.isDefault, change: async () => { await store.setDefaultResume(resume.id); await renderResumes(); } }), ' Default'),
       h('button', { type: 'button', class: 'small', click: () => reparse(resume) }, 'Reparse'),
       h('button', { type: 'button', class: 'small', click: async () => { await store.deleteResume(resume.id); await renderResumes(); } }, 'Delete')))));
+  await renderProfiles();
+}
+
+const keepChanges = () => !dirty || confirm('Discard the unsaved changes to this profile?');
+
+async function openProfile(id: string): Promise<void> {
+  editingId = id;
+  await store.setActiveProfile(id);
+  draft = await store.getProfile(id);
+  dirty = false;
+  renderProfile();
+  await renderProfiles();
+}
+
+async function renderProfiles(): Promise<void> {
+  const [list, resumes] = await Promise.all([store.listProfiles(), store.listResumes()]);
+  const info = list.find((profile) => profile.id === editingId) ?? list[0];
+  byId('profiles').replaceChildren(
+    h('h2', {}, 'Profiles'),
+    h('p', { class: 'muted' }, 'Keep a profile for each kind of job you apply for. Each one has its own details, history and resume. The answer bank is shared. Pick the profile in the side panel before you fill.'),
+    h('div', { class: 'grid' },
+      h('label', {}, h('span', {}, 'Editing'),
+        h('select', { id: 'profile-pick', change: async (event: Event) => {
+          const select = event.target as HTMLSelectElement;
+          if (!keepChanges()) {
+            select.value = info.id;
+            return;
+          }
+          await openProfile(select.value);
+          log.info('profile.opened', { profiles: list.length });
+        } }, ...list.map((profile) => h('option', { value: profile.id, selected: profile.id === info.id }, profile.name)))),
+      h('label', {}, h('span', {}, 'Name'),
+        h('input', { id: 'profile-name', value: info.name, change: async (event: Event) => {
+          const name = (event.target as HTMLInputElement).value.trim();
+          if (name) await store.updateProfileInfo(info.id, { name });
+          await renderProfiles();
+        } })),
+      h('label', {}, h('span', {}, 'Resume for this profile'),
+        h('select', { id: 'profile-resume', change: async (event: Event) => {
+          const resumeId = (event.target as HTMLSelectElement).value || undefined;
+          await store.updateProfileInfo(info.id, { resumeId });
+        } },
+        h('option', { value: '' }, 'Default resume'),
+        ...resumes.map((resume) => h('option', { value: resume.id, selected: resume.id === info.resumeId }, resume.name))))),
+    h('div', { class: 'actions', style: 'margin-top:8px' },
+      h('button', { type: 'button', id: 'profile-new', click: async () => {
+        if (!keepChanges()) return;
+        const id = await store.createProfile(`Profile ${list.length + 1}`, await store.getProfile(info.id));
+        await openProfile(id);
+        log.info('profile.created', { profiles: list.length + 1 });
+        byId<HTMLInputElement>('profile-name').select();
+      } }, 'New profile from this one'),
+      h('button', { type: 'button', id: 'profile-delete', disabled: list.length < 2, click: async () => {
+        if (!confirm(`Delete ${info.name}? Its details leave this browser. Resumes and saved answers stay.`)) return;
+        await store.deleteProfile(info.id);
+        log.info('profile.deleted', { profiles: list.length - 1 });
+        await openProfile(await store.activeProfileId());
+      } }, 'Delete this profile')));
 }
 
 async function renderAnswers(): Promise<void> {
@@ -455,16 +515,21 @@ function initBugReport(): void {
 }
 
 // The profile form and lists render after the page loads and push the section down, so this runs last.
-function showBugSection(): void {
-  if (location.hash !== '#bug') return;
-  byId('bug').scrollIntoView();
-  byId<HTMLTextAreaElement>('bug-text').focus({ preventScroll: true });
+// The panel links here with #bug for a report and #ai to connect an AI tool.
+const LINKED_SECTIONS: Record<string, string> = { '#bug': 'bug-text', '#ai': 'claude-mode' };
+
+function showLinkedSection(): void {
+  const focus = LINKED_SECTIONS[location.hash];
+  if (!focus) return;
+  byId(location.hash.slice(1)).scrollIntoView();
+  byId(focus).focus({ preventScroll: true });
 }
 
 async function init(): Promise<void> {
   await initClaude();
   initBugReport();
-  draft = await store.getProfile();
+  editingId = await store.activeProfileId();
+  draft = await store.getProfile(editingId);
   renderProfile();
   await Promise.all([renderResumes(), renderAnswers(), renderLogs()]);
 
@@ -486,8 +551,8 @@ async function init(): Promise<void> {
   byId('log-export').addEventListener('click', exportLogs);
   byId('log-clear').addEventListener('click', async () => { await store.clearLogs(); await renderLogs(); });
   addEventListener('beforeunload', (event) => { if (dirty) event.preventDefault(); });
-  addEventListener('hashchange', showBugSection);
-  showBugSection();
+  addEventListener('hashchange', showLinkedSection);
+  showLinkedSection();
 }
 
 void init();

@@ -6,9 +6,9 @@ import { normalize } from '../engine/text';
 import { canDraft, DRAFT_SYSTEM, needsReview, parseReview, questionId, REVIEW_SCHEMA, REVIEW_SYSTEM, reviewPrompt, usableOptions, type ReviewAnswer, type ReviewQuestion } from '../engine/review';
 import { askClaude } from '../shared/claude';
 import { activeModel, providerName } from '../shared/providers';
-import { getClaudeSettings, getProfile, listAnswers, listResumes, putAnswer } from '../shared/db';
+import { activeProfileInfo, getClaudeSettings, getProfile, listAnswers, listProfiles, listResumes, putAnswer, recordApplication, saveProfile, setActiveProfile } from '../shared/db';
 import { createLogger, errorData, newRunId, stripUrl } from '../shared/log';
-import type { ClaudeSettings, ContentRequest, FillItem, FillResult, PlanRow, ScannedField, StoredResume } from '../shared/types';
+import type { ClaudeSettings, ContentRequest, FillItem, FillResult, PlanRow, ProfileInfo, ScannedField, StoredResume } from '../shared/types';
 import { isNewer, latestVersion } from '../shared/version';
 import { byId, h } from './dom';
 
@@ -20,11 +20,14 @@ let fields: ScannedField[] = [];
 let tabId = 0;
 let frames: number[] = [];
 let resumes: StoredResume[] = [];
+let profiles: ProfileInfo[] = [];
+let profileInfo: ProfileInfo | undefined;
 let notice: { text: string; error: boolean } | null = null;
 let watchToken = 0;
 let busy = 0;
 let drafting: PlanRow | null = null;
 let ai = 'Claude';
+let aiOn = false;
 
 const FILLABLE = new Set(['ready', 'low', 'confirm']);
 // Forms that parse an upload on their server can rewrite themselves long after the page looks idle.
@@ -102,9 +105,11 @@ function updateButtons(): void {
   // A rescan during a draft would renumber the fields, and the reply could land in the wrong one.
   if (drafting || busy) return;
   byId<HTMLButtonElement>('scan').disabled = false;
+  byId<HTMLSelectElement>('profile').disabled = false;
   byId<HTMLButtonElement>('fill').disabled = !rows.some((row) => FILLABLE.has(row.status) && !row.result);
   byId<HTMLButtonElement>('undo').disabled = !rows.some((row) => row.result?.ok);
   byId<HTMLButtonElement>('review').disabled = !reviewTargets().length;
+  byId<HTMLButtonElement>('learn').disabled = !editTargets().length;
 }
 
 const fieldFor = (row: PlanRow) => fields.find((field) => field.fieldId === row.fieldId && field.frameId === row.frameId);
@@ -112,7 +117,7 @@ const reviewTargets = () => rows.filter((row) => needsReview(row, fieldFor(row))
 
 function guard(task: () => Promise<void>) {
   return async () => {
-    const buttons = ['scan', 'fill', 'undo', 'review'].map((id) => byId<HTMLButtonElement>(id));
+    const buttons = ['scan', 'fill', 'undo', 'review', 'learn', 'profile'].map((id) => byId<HTMLButtonElement>(id));
     buttons.forEach((button) => (button.disabled = true));
     busy++;
     render();
@@ -137,6 +142,8 @@ async function scan(): Promise<void> {
   tabId = await targetTab();
   const tab = await chrome.tabs.get(tabId);
   log.info('scan.start', { pageUrl: stripUrl(tab.url ?? ''), version: chrome.runtime.getManifest().version });
+  edits = [];
+  await loadProfiles();
   await loadResumes();
   await scanFrames();
   if (!fields.length) setNotice('No form fields found. If this is a multi-step form, open the step with fields and scan again.');
@@ -410,7 +417,24 @@ async function fill(): Promise<void> {
     uploaded: uploadResult?.ok ?? false,
     statuses: countBy(rows.map((row) => row.status)),
   });
+  if (rows.some((row) => row.result?.ok)) await logApplication();
   void watchFilled(uploadResult?.ok ? WATCH_AFTER_UPLOAD_MS : WATCH_MS).catch((error) => log.error('watch.failed', errorData(error)));
+}
+
+// Kept in this browser only, for the Applications page.
+async function logApplication(): Promise<void> {
+  try {
+    const tab = await chrome.tabs.get(tabId);
+    const url = stripUrl(tab.url ?? '');
+    let host = '';
+    try { host = new URL(url).host; } catch { /* Not a web page, so there is nothing to list. */ }
+    if (!host) return;
+    const app = await recordApplication({ url, host, title: (tab.title ?? '').trim() || host, resume: selectedResume()?.name ?? '', profile: profileInfo?.name ?? '' });
+    log.info('application.logged', { fills: app.fills, isNew: app.fills === 1 });
+    if (!notice && app.fills === 1) setNotice('Added to your applications. Open Applications above to track it.');
+  } catch (error) {
+    log.error('application.logFailed', errorData(error));
+  }
 }
 
 async function undo(): Promise<void> {
@@ -468,7 +492,11 @@ function recordAnswer(row: PlanRow, answer: ReviewAnswer | undefined, options: s
 async function refreshProvider(settings?: ClaudeSettings): Promise<ClaudeSettings> {
   const current = settings ?? await getClaudeSettings();
   ai = providerName(current);
+  // With no AI tool connected, the AI buttons stay out of the way and one line says how to add one.
+  aiOn = current.mode !== 'off';
+  byId('ai-setup').hidden = aiOn;
   const button = byId<HTMLButtonElement>('review');
+  button.hidden = !aiOn;
   button.textContent = `Review missed with ${ai}`;
   button.title = `Sends your whole profile to ${ai}, with the questions this tool could not answer`;
   return current;
@@ -636,6 +664,98 @@ async function saveAnswer(row: PlanRow): Promise<void> {
   row.reason = 'Saved to your answer bank.';
 }
 
+interface Edit {
+  row: PlanRow;
+  before: string;
+  value: string;
+  target: 'profile' | 'bank';
+}
+let edits: Edit[] = [];
+
+const TEXT_KINDS = new Set(['text', 'textarea', 'contenteditable']);
+const NEEDS_YOU = new Set(['missing', 'no-option', 'unmatched', 'suggested']);
+
+// Fields the user may have typed into: ones Rote filled, ones it failed on, and ones it left for them.
+// Work and education rows repeat with the same labels, so a saved answer could not tell them apart.
+function editTargets(): PlanRow[] {
+  return rows.filter((row) => {
+    if (row.kind === 'file' || row.status === 'blocked' || row.claude) return false;
+    if (row.key && CATALOG_BY_KEY.get(row.key)?.repeat) return false;
+    if (row.kind === 'checkbox' && (fieldFor(row)?.options.length ?? 0) < 2) return false;
+    return row.result ? true : NEEDS_YOU.has(row.status);
+  });
+}
+
+// Plain profile fields learn the typed text. Anything with choices learns the page's own wording
+// in the answer bank, since another site's list would not have it.
+function editTarget(row: PlanRow): Edit['target'] {
+  const entry = row.key ? CATALOG_BY_KEY.get(row.key) : undefined;
+  return entry && !entry.choices && entry.source !== 'file' && entry.key !== 'skills' && TEXT_KINDS.has(row.kind) && !row.fromBank ? 'profile' : 'bank';
+}
+
+// Sites reformat phone numbers and dates as they are typed, which is not an edit.
+const sameText = (a: string, b: string) => a.toLowerCase().replace(/[^\p{L}\p{N}]/gu, '') === b.toLowerCase().replace(/[^\p{L}\p{N}]/gu, '');
+
+async function findEdits(): Promise<void> {
+  watchToken++;
+  const targets = editTargets();
+  const current = await Promise.all(targets.map((row) => send<string>(row.frameId, { type: 'read', runId, fieldId: row.fieldId })));
+  edits = [];
+  let tooShort = 0;
+  targets.forEach((row, index) => {
+    const value = (current[index] ?? '').trim();
+    if (!value || PLACEHOLDER_OPTION.test(value)) return;
+    const before = row.result?.ok ? row.result.chosen ?? row.value : '';
+    if (before && (sameText(before, value) || sameText(row.value, value))) return;
+    const target = editTarget(row);
+    // The answer bank ignores very short questions, so saving one would do nothing.
+    if (target === 'bank' && normalize(row.label).length < 8) {
+      tooShort++;
+      return;
+    }
+    edits.push({ row, before, value, target });
+  });
+  log.info('edits.found', { checked: targets.length, edited: edits.length, tooShort, targets: countBy(edits.map((edit) => edit.target)) });
+  setNotice(edits.length
+    ? `Found ${edits.length} field(s) you changed or filled in. Pick the ones to keep below.`
+    : 'Rote found no changes it can learn. Change a field on the page, then click Save my edits.');
+}
+
+async function keepEdit(edit: Edit): Promise<void> {
+  const { row, value } = edit;
+  if (edit.target === 'profile') {
+    const profile = await getProfile();
+    profile.fields[row.key] = value;
+    await saveProfile(profile);
+  } else {
+    const normalized = normalize(row.label);
+    await putAnswer({ id: normalized, question: row.label, normalized, answer: value, updatedAt: Date.now() });
+  }
+  row.value = value;
+  if (row.result?.ok) row.result.chosen = value;
+  else Object.assign(row, { status: 'existing' });
+  row.reason = edit.target === 'profile' ? `Saved to your profile as ${CATALOG_BY_KEY.get(row.key)!.label}.` : 'Saved to your answer bank.';
+  edits = edits.filter((other) => other !== edit);
+  log.info('edits.kept', { target: edit.target, key: row.key, kind: row.kind });
+}
+
+function renderEdit(edit: Edit) {
+  const { row } = edit;
+  const where = edit.target === 'profile' ? 'Save to profile' : 'Save to answer bank';
+  return h('div', { class: 'row', 'data-edit': row.label },
+    h('div', { class: 'row-head' },
+      h('span', { class: 'row-label' }, row.label),
+      h('span', { class: 'tag' }, edit.target === 'profile' ? 'Profile' : 'Answer bank')),
+    edit.before ? h('div', { class: 'muted' }, `Rote filled: ${edit.before}`) : null,
+    h('div', { class: 'row-value' }, `You entered: ${edit.value}`),
+    h('div', { class: 'row-reason' }, edit.target === 'profile'
+      ? `Rote fills ${CATALOG_BY_KEY.get(row.key)!.label} with this on every site.`
+      : 'Rote fills this question with your answer when it sees the same wording again.'),
+    h('div', { class: 'row-buttons' },
+      h('button', { class: 'small primary', click: guard(() => keepEdit(edit)) }, where),
+      h('button', { class: 'small', click: () => { edits = edits.filter((other) => other !== edit); render(); } }, 'Skip')));
+}
+
 function statusTag(row: PlanRow): { text: string; tone: string } {
   if (row.result) return row.result.ok ? { text: 'Filled', tone: 'good' } : { text: 'Failed', tone: 'bad' };
   const map: Record<string, [string, string]> = {
@@ -652,16 +772,17 @@ function renderRow(row: PlanRow, rerender: () => void) {
   const buttons = h('div', { class: 'row-buttons' },
     h('button', { class: 'small', click: run(async () => { await send(row.frameId, { type: 'show', runId, fieldId: row.fieldId }); }) }, 'Show'));
 
-  if (canDraft(row, fieldFor(row))) {
+  if (aiOn && canDraft(row, fieldFor(row))) {
     buttons.prepend(h('button', { class: 'small primary', disabled: Boolean(drafting) || busy > 0, click: run(() => draft(row)) }, row === drafting ? 'Drafting...' : `Draft reply with ${ai}`));
   }
   if (row.status === 'existing' && row.value && row.key && !row.result && row.kind !== 'file') {
     buttons.append(h('button', { class: 'small', click: run(() => fillSingle(row, 'low')) }, 'Replace with mine'));
   }
-  if (row.status === 'suggested' && !row.result) {
+  // A saved answer that fills on its own can still be applied by itself, over what the page holds.
+  if ((row.status === 'suggested' || (row.fromBank && row.status !== 'existing')) && !row.result) {
     buttons.append(h('button', { class: 'small', click: run(() => fillSingle(row, 'low')) }, 'Use saved answer'));
   }
-  if ((row.status === 'unmatched' || row.status === 'suggested') && row.kind !== 'file') {
+  if ((row.status === 'unmatched' || row.status === 'suggested' || (row.fromBank && !row.key)) && row.kind !== 'file') {
     buttons.append(h('button', { class: 'small', click: run(() => saveAnswer(row)) }, 'Save my answer'));
   }
   if (row.status === 'confirm' && row.result?.ok) {
@@ -705,6 +826,14 @@ function render(): void {
   report.append(h('p', { class: 'summary' },
     `${rows.length} fields found${filled ? `, ${filled} filled` : ''}. ${required} required field(s) need you.${unconfirmed ? ` ${unconfirmed} answer(s) still need confirming.` : ''}${pending.length ? ` ${pending.length} ${ai} answer(s) to check.` : ''}`));
 
+  if (edits.length) {
+    report.append(h('section', { class: 'card', 'data-group': 'Your edits' },
+      h('div', { class: 'actions spread' },
+        h('h2', {}, `Your edits (${edits.length})`),
+        h('button', { class: 'small', click: guard(async () => { for (const edit of [...edits]) await keepEdit(edit); }) }, 'Save all')),
+      ...edits.map(renderEdit)));
+  }
+
   if (pending.length) {
     report.append(h('section', { class: 'card', 'data-group': 'Claude' },
       h('h2', {}, `${ai}'s answers, check these (${pending.length})`),
@@ -720,15 +849,40 @@ function render(): void {
 }
 
 // Resumes can be added on the options page while this panel stays open.
-async function loadResumes(): Promise<void> {
+async function loadResumes(prefer?: string): Promise<void> {
   const select = byId<HTMLSelectElement>('resume');
   resumes = await listResumes();
   // Read after the wait, or a resume picked during it gets switched back.
-  const current = select.value;
+  const current = prefer ?? select.value;
   select.replaceChildren(...resumes.map((resume) => h('option', { value: resume.id }, resume.name)));
-  const preferred = resumes.find((resume) => resume.id === current) ?? resumes.find((resume) => resume.isDefault);
+  const preferred = resumes.find((resume) => resume.id === current) ?? resumes.find((resume) => resume.id === profileInfo?.resumeId) ?? resumes.find((resume) => resume.isDefault);
   if (preferred) select.value = preferred.id;
   if (!resumes.length) select.append(h('option', { value: '' }, 'No resume added yet'));
+}
+
+// The picker shows only once there is a second profile. The choice is shared with the options page.
+async function loadProfiles(): Promise<boolean> {
+  const before = profileInfo?.id;
+  [profiles, profileInfo] = await Promise.all([listProfiles(), activeProfileInfo()]);
+  const select = byId<HTMLSelectElement>('profile');
+  select.replaceChildren(...profiles.map((info) => h('option', { value: info.id }, info.name)));
+  select.value = profileInfo.id;
+  byId('profile-row').hidden = profiles.length < 2;
+  return before !== undefined && before !== profileInfo.id;
+}
+
+// The scanned values came from the old profile, so the report is cleared until the next scan.
+async function switchProfile(): Promise<void> {
+  if (busy) return;
+  watchToken++;
+  rows = [];
+  edits = [];
+  // An empty choice falls through to the default resume when this profile names none.
+  await loadResumes(profileInfo?.resumeId ?? '');
+  const profile = await getProfile();
+  setNotice(profile.updatedAt ? `Using ${profileInfo!.name}. Scan the page to fill with it.` : `${profileInfo!.name} has no saved details yet. Open Profile and logs to add them.`);
+  render();
+  updateButtons();
 }
 
 async function showVersion(): Promise<void> {
@@ -742,6 +896,7 @@ async function showVersion(): Promise<void> {
 
 async function init(): Promise<void> {
   void showVersion().catch((error) => log.error('version.check', errorData(error)));
+  await loadProfiles();
   await loadResumes();
 
   const profile = await getProfile();
@@ -749,20 +904,46 @@ async function init(): Promise<void> {
   else log.debug('profile.gaps', { gaps: profileGaps(profile).map((gap) => gap.key) });
 
   byId('settings').addEventListener('click', () => chrome.runtime.openOptionsPage());
+  // Reuses an open Applications tab, the way Chrome reuses the options page.
+  byId('applications').addEventListener('click', async () => {
+    const url = chrome.runtime.getURL('applications.html');
+    const [open] = await chrome.tabs.query({ url });
+    if (open?.id === undefined) await chrome.tabs.create({ url });
+    else {
+      await chrome.tabs.update(open.id, { active: true });
+      await chrome.windows.update(open.windowId, { focused: true });
+    }
+  });
   byId('bug').addEventListener('click', () => void chrome.tabs.create({ url: chrome.runtime.getURL('options.html#bug') }));
+  byId('ai-setup-link').addEventListener('click', (event) => {
+    event.preventDefault();
+    void chrome.tabs.create({ url: chrome.runtime.getURL('options.html#ai') });
+  });
   byId('scan').addEventListener('click', guard(scan));
   byId('fill').addEventListener('click', guard(fill));
   byId('undo').addEventListener('click', guard(undo));
   byId('review').addEventListener('click', guard(review));
-  // The provider can change on the options page while the panel stays open.
-  const showProvider = () => refreshProvider().then(render).catch((error) => log.error('provider.refresh', errorData(error)));
+  byId('learn').addEventListener('click', guard(findEdits));
+  byId('profile').addEventListener('change', async () => {
+    await setActiveProfile(byId<HTMLSelectElement>('profile').value);
+    await loadProfiles();
+    log.info('profile.switched', { profiles: profiles.length });
+    await switchProfile();
+  });
+  // The provider and the profile can change on the options page while the panel stays open.
+  const showProvider = () => refreshProvider()
+    .then(async () => { if (await loadProfiles()) await switchProfile(); })
+    .then(render)
+    .catch((error) => log.error('provider.refresh', errorData(error)));
   window.addEventListener('focus', showProvider);
   document.addEventListener('visibilitychange', showProvider);
   await refreshProvider();
   chrome.tabs.onActivated.addListener(() => {
     if (new URLSearchParams(location.search).has('tabId')) return;
     rows = [];
+    edits = [];
     render();
+    byId<HTMLButtonElement>('learn').disabled = true;
     byId<HTMLButtonElement>('review').disabled = true;
     byId<HTMLButtonElement>('fill').disabled = true;
     byId<HTMLButtonElement>('undo').disabled = true;
