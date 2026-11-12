@@ -988,6 +988,26 @@ test('attaches again when the page showed the file, rebuilt its input, and the u
   await panel.close();
 });
 
+test('treats a native select marked role=combobox as a select, the way iCIMS builds its forms', async ({ shared: context, extensionId }) => {
+  const body = '<!doctype html><title>t</title><form>'
+    + '<label for="st">State</label><select id="st" role="combobox" required><option value="">— Make a Selection —</option><option value="OH">Ohio</option><option value="TX">Texas</option></select>'
+    + '<label for="sh">Preferred shift</label><select id="sh" role="combobox"><option value="">— Make a Selection —</option><option value="d" selected>Days</option><option value="n">Nights</option></select>'
+    + '</form>';
+  const pageRoute = (route: Route) => route.fulfill({ contentType: 'text/html', body });
+  await context.route('http://fixture.test/icims.html', pageRoute);
+  const { target, panel } = await openPanelFor(context, extensionId, 'http://fixture.test/icims.html');
+  await panel.click('#scan');
+  const row = (name: string) => panel.locator('.row', { hasText: name });
+  await expect(row('Preferred shift')).toContainText('already has a value');
+  await expect(row('State')).not.toContainText('already has a value');
+  await panel.click('#fill');
+  await expect(target.locator('#st')).toHaveValue('TX', { timeout: 10000 });
+  await expect(target.locator('#sh')).toHaveValue('d');
+  await context.unroute('http://fixture.test/icims.html', pageRoute);
+  await target.close();
+  await panel.close();
+});
+
 test('sees what a form already picked in lists with placeholders, hidden inputs and wrapped inputs', async ({ shared: context, extensionId }) => {
   const body = '<!doctype html><title>t</title><form>'
     + '<label for="a">Preferred territories</label><select id="a" multiple><option value="" selected>Select...</option><option selected>North</option><option>South</option></select>'

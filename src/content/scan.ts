@@ -351,8 +351,9 @@ export function scanFrame(frameId: number): ScanResult {
     }
 
     const paired = pairedSelect(el);
-    const isCombobox =
-      Boolean(paired) || role === 'combobox' || el.matches('button[aria-haspopup=listbox],[role=button][aria-haspopup=listbox],input[aria-autocomplete=list]');
+    // iCIMS puts role="combobox" on plain native selects, which still need the select path to read their options.
+    const isCombobox = !(el instanceof HTMLSelectElement) && (
+      Boolean(paired) || role === 'combobox' || el.matches('button[aria-haspopup=listbox],[role=button][aria-haspopup=listbox],input[aria-autocomplete=list]'));
     if (isCombobox) {
       const outer = el.parentElement?.closest('[role=combobox]');
       if (outer) { skip('inside combobox'); continue; }
