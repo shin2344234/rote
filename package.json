@@ -1,6 +1,6 @@
 {
   "name": "rote",
-  "version": "0.1.11",
+  "version": "0.1.12",
   "type": "module",
   "scripts": {
     "build": "node build.mjs",
