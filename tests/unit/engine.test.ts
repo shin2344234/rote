@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { parseResumeText, yearsOfExperience } from '../../src/parser/parse';
 import { layoutPage, type PdfItem } from '../../src/parser/layout';
 import { scoreField, isBlocked, phraseScore, repeatIndex } from '../../src/engine/match';
-import { chooseAddress, chooseOption, savedChoices, searchQueries } from '../../src/engine/options';
-import { buildPlan, findBankAnswer, profileGaps } from '../../src/engine/plan';
+import { chooseAddress, chooseOption, chooseSkill, savedChoices, searchQueries, skillQueries, splitSkills } from '../../src/engine/options';
+import { buildPlan, findBankAnswer, linkedinUrl, profileGaps } from '../../src/engine/plan';
 import { normalize, readDate, storedDate } from '../../src/engine/text';
 import { canDraft, needsReview, parseReview } from '../../src/engine/review';
 import { redact } from '../../src/shared/log';
@@ -584,5 +584,66 @@ describe('Claude review', () => {
     expect(needsReview({ ...row, kind: 'checkbox' }, { ...field, options: ['I certify this is true'] })).toBe(false);
     expect(needsReview(row, { ...field, hasValue: true })).toBe(false);
     expect(needsReview({ ...row, status: 'ready', result: { fieldId: 'f', ok: false, detail: '' } }, field)).toBe(true);
+  });
+});
+
+describe('linkedinUrl', () => {
+  it('gives the full www address Workday accepts', () => {
+    expect(linkedinUrl('https://linkedin.com/in/jordan-avery')).toBe('https://www.linkedin.com/in/jordan-avery');
+    expect(linkedinUrl('linkedin.com/in/jordan-avery/')).toBe('https://www.linkedin.com/in/jordan-avery');
+    expect(linkedinUrl('http://uk.linkedin.com/in/jordan-avery?trk=x')).toBe('https://www.linkedin.com/in/jordan-avery');
+    expect(linkedinUrl('https://www.linkedin.com/in/jordan-avery')).toBe('https://www.linkedin.com/in/jordan-avery');
+    expect(linkedinUrl('jordan-avery')).toBe('jordan-avery');
+  });
+});
+
+describe('Workday skills', () => {
+  it('splits a skills list but keeps commas inside parentheses', () => {
+    expect(splitSkills('Windows Server, Linux (Ubuntu, RHEL); vSphere/ESXi\n• Docker')).toEqual(['Windows Server', 'Linux (Ubuntu, RHEL)', 'vSphere/ESXi', 'Docker']);
+  });
+
+  it('searches each name a skill goes by, then shorter forms', () => {
+    expect(skillQueries('Linux (Ubuntu, RHEL)')).toEqual(['Linux (Ubuntu, RHEL)', 'Linux', 'Ubuntu', 'RHEL']);
+    expect(skillQueries('Cisco UCS/Meraki/Catalyst').slice(0, 4)).toEqual(['Cisco UCS/Meraki/Catalyst', 'Cisco UCS', 'Meraki', 'Catalyst']);
+    expect(skillQueries('Microsoft Entra ID (Azure AD)')).toContain('Microsoft Entra');
+    expect(skillQueries('Python')).toEqual(['Python']);
+    expect(skillQueries('A B C D E F G').length).toBeLessThanOrEqual(5);
+  });
+
+  // Result lists Workday gave on a real form.
+  const AWS = ['AWS VPN', 'Amazon Web Services (AWS)', 'AWS SDK', 'AWS Administration', 'AWS Cloud Computing', 'AWS Glue', 'AWS Batch'];
+  const VMWARE = ['VMware ESX vSphere', 'VMware ESXi', 'VMware ESX Servers', 'Virtualization', 'VMware vSphere', 'VMware vSphere API'];
+  const VPN = ['Virtual Private Networks (VPNs)', 'MPLS VPNs', 'Internet Protocol Virtual Private Network (IP VPN)'];
+  const ISCSI = ['Internet Small Computer Systems Interface (iSCSI)', 'iSCSI SAN', 'ISPConfig'];
+  const pick = (skill: string, options: string[]) => options[chooseSkill(skill, options)];
+
+  it('takes the closest listed skill', () => {
+    expect(pick('AWS', AWS)).toBe('Amazon Web Services (AWS)');
+    expect(pick('vSphere/ESXi', VMWARE)).toBe('VMware ESXi');
+    expect(pick('VPNs', VPN)).toBe('Virtual Private Networks (VPNs)');
+    expect(pick('iSCSI', ISCSI)).toBe('Internet Small Computer Systems Interface (iSCSI)');
+    expect(pick('Python', ['Python Scripting', 'Python (Programming Language)'])).toBe('Python (Programming Language)');
+    expect(pick('Node.js', ['NodeJS'])).toBe('NodeJS');
+    expect(pick('PowerShell', ['Windows PowerShell'])).toBe('Windows PowerShell');
+    expect(pick('VLANs', ['VLAN'])).toBe('VLAN');
+    expect(pick('REST APIs', ['RESTful API', 'REST API'])).toBe('REST API');
+    expect(pick('MFA', ['Multi-Factor Authentication', 'Microsoft Entra'])).toBe('Multi-Factor Authentication');
+    expect(pick('Single Sign-On', ['SSO'])).toBe('SSO');
+    expect(pick('Python 3', ['Python'])).toBe('Python');
+    expect(pick('Windows Server 2019', ['Windows Servers', 'Windows'])).toBe('Windows Servers');
+    expect(pick('Microsoft Entra ID (Azure AD)', ['Microsoft Entra', 'Microsoft Azure'])).toBe('Microsoft Entra');
+    expect(pick('Active Directory', ['Azure Active Directory', 'Directory Services'])).toBe('Azure Active Directory');
+    expect(pick('Linux (Ubuntu, RHEL)', ['Linux Administration', 'Linux'])).toBe('Linux');
+    expect(pick('C#', ['C', 'C++', 'C# (Programming Language)'])).toBe('C# (Programming Language)');
+  });
+
+  it('takes nothing when no listed skill is close', () => {
+    expect(chooseSkill('Java', ['JavaScript'])).toBe(-1);
+    expect(chooseSkill('C', ['C#', 'C++'])).toBe(-1);
+    expect(chooseSkill('Cisco UCS', ['Cisco'])).toBe(-1);
+    expect(chooseSkill('Ubiquiti', ['Das U-Boot', 'Ubiquitin', 'Ubiquitous Computing'])).toBe(-1);
+    expect(chooseSkill('XCP-ng', ['Xcos', 'Xserver', 'XCAP', 'DHCP Servers'])).toBe(-1);
+    expect(chooseSkill('Azure Backup', ['Microsoft Azure', 'Azure Batch'])).toBe(-1);
+    expect(chooseSkill('Microsoft 365', AWS)).toBe(-1);
   });
 });

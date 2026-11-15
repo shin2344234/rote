@@ -274,6 +274,10 @@ test('fills each Workday block added after the first, however Workday numbers th
   await expect(target.locator('[id="workExperience-8--currentlyWorkHere"]')).toBeChecked();
   await expect(target.locator('[id="workExperience-122--currentlyWorkHere"]')).not.toBeChecked();
   await expect(panel.locator('#status')).toContainText('added 1 work block');
+  // Workday's Skills picker only takes a skill whose search result checkbox is ticked. It names Python differently and has no SQL.
+  expect(await target.evaluate(() => (window as unknown as { skills: string[] }).skills)).toEqual(['TypeScript', 'Python (Programming Language)']);
+  await expect(panel.locator('.row', { hasText: 'Type to Add Skills' })).toContainText('added 2 of 3 skills');
+  await expect(panel.locator('.row', { hasText: 'Type to Add Skills' })).toContainText('nothing close to SQL');
   await expect(target.locator('body')).not.toHaveAttribute('data-submitted', 'yes');
   await target.close();
   await panel.close();

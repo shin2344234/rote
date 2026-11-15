@@ -12,6 +12,15 @@
     <div id="blocks"></div>
     <button type="button" data-automation-id="add-button" id="add">Add Another</button>
   </div>
+  <div data-automation-id="skillsSection">
+    <h3>Skills</h3>
+    <label for="skills--skills">Type to Add Skills</label>
+    <div id="skills-box">
+      <ul id="pills"></ul>
+      <input id="skills--skills" data-automation-id="searchBox" placeholder="Search">
+    </div>
+  </div>
+  <div id="popup"></div>
   <button type="submit" id="submit">Save and Continue</button>
 </form>
 <script>
@@ -69,6 +78,44 @@
       input.replaceWith(fresh);
     }, 0);
   });
+  // Workday's Skills picker searches only on Enter and offers loose matches. Each result has a checkbox,
+  // and only ticking it adds the skill. Clicking the row itself does nothing. The search box empties on
+  // blur, so typed text alone never sticks. Picked skills show as pills that Workday also marks as
+  // prompt options inside menu items. The picker names few skills the way a resume does.
+  const CATALOG = ['TypeScript', 'Python Scripting', 'Python (Programming Language)', 'MySQL', 'JavaScript'];
+  const skillsInput = document.getElementById('skills--skills');
+  const pills = document.getElementById('pills');
+  const popup = document.getElementById('popup');
+  window.skills = [];
+  function drawPills() {
+    pills.innerHTML = window.skills.map((skill) => `<li data-automation-id="menuItem"><div data-automation-id="selectedItem"><div data-automation-id="promptOption" role="option" data-automation-label="${skill}">${skill}</div></div><span data-automation-id="DELETE_charm" role="button" aria-label="Delete ${skill}">x</span></li>`).join('');
+    pills.querySelectorAll('[data-automation-id="DELETE_charm"]').forEach((charm, index) => charm.addEventListener('click', () => {
+      window.skills.splice(index, 1);
+      drawPills();
+    }));
+  }
+  function search(query) {
+    const words = query.toLowerCase().split(/\s+/).filter(Boolean);
+    const found = CATALOG.filter((skill) => words.some((word) => skill.toLowerCase().includes(word)));
+    setTimeout(() => {
+      // Like Workday, the first result is the one the keyboard highlights.
+      popup.innerHTML = found.map((skill, index) => `<div data-automation-id="menuItem" role="option" aria-selected="${index === 0}"><div data-automation-id="promptLeafNode" data-automation-checked="${window.skills.includes(skill) ? 'Checked' : 'NotChecked'}"><input type="checkbox" data-automation-id="checkboxPanel"${window.skills.includes(skill) ? ' checked' : ''}><div data-automation-id="promptOption" data-automation-label="${skill}">${skill}</div></div></div>`).join('');
+      popup.querySelectorAll('input[data-automation-id="checkboxPanel"]').forEach((box, index) => box.addEventListener('click', () => {
+        const skill = found[index];
+        if (box.checked && !window.skills.includes(skill)) window.skills.push(skill);
+        if (!box.checked) window.skills = window.skills.filter((other) => other !== skill);
+        box.closest('[data-automation-id="promptLeafNode"]').dataset.automationChecked = box.checked ? 'Checked' : 'NotChecked';
+        drawPills();
+      }));
+    }, 600);
+  }
+  // Typing empties the results until Enter brings the new ones, 600 ms later.
+  skillsInput.addEventListener('input', () => { popup.innerHTML = ''; });
+  skillsInput.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter') search(skillsInput.value);
+    if (event.key === 'Escape') popup.innerHTML = '';
+  });
+  skillsInput.addEventListener('blur', () => { skillsInput.value = ''; });
   addBlock();
   document.getElementById('add').addEventListener('click', () => setTimeout(addBlock, 50));
   document.querySelector('form').addEventListener('submit', (event) => {

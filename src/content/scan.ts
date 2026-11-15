@@ -199,6 +199,26 @@ export function workdayDateShown(el: HTMLElement): string | null {
   return /^\d+$/.test(text) ? text : '';
 }
 
+// Workday's Skills picker is a search box. Its value empties after each search, and the picked skills
+// show as selectedItem pills next to it.
+export function isWorkdayPicker(el: HTMLElement): el is HTMLInputElement {
+  return el.matches('input') && (/^skills--skills/i.test(el.id) || el.getAttribute('data-automation-id') === 'searchBox');
+}
+
+export const workdayLabel = (node: HTMLElement) =>
+  clean(node.querySelector('[data-automation-label]')?.getAttribute('data-automation-label') ?? node.getAttribute('data-automation-label') ?? node.textContent);
+
+export function workdayPills(el: HTMLElement): HTMLElement[] {
+  let node = el.parentElement;
+  for (let depth = 0; node && depth < 6; depth++, node = node.parentElement) {
+    const pills = Array.from(node.querySelectorAll<HTMLElement>('[data-automation-id=selectedItem]'));
+    if (pills.length) return pills;
+  }
+  return [];
+}
+
+export const workdayPicked = (el: HTMLElement) => workdayPills(el).map(workdayLabel).filter(Boolean);
+
 function signalsOf(el: HTMLElement, legend = ''): FieldSignals {
   const input = el as HTMLInputElement;
   return {
@@ -411,7 +431,7 @@ export function scanFrame(frameId: number): ScanResult {
       if (el.getAttribute('aria-hidden') === 'true') { skip('aria-hidden helper input'); continue; }
       if (isSiteChrome(el)) { skip('footer or newsletter form'); continue; }
       if (!isVisible(el) && !(WORKDAY_DATE.test(el.id) && workdayDateVisible(el))) { skip('hidden input'); continue; }
-      add(el, el.type === 'date' || el.type === 'month' ? 'date' : 'text', { hasValue: Boolean(workdayDateShown(el) ?? el.value.trim()) });
+      add(el, el.type === 'date' || el.type === 'month' ? 'date' : 'text', { hasValue: Boolean(workdayDateShown(el) ?? (el.value.trim() || (isWorkdayPicker(el) && workdayPicked(el).length))) });
     } else if (el instanceof HTMLTextAreaElement) {
       if (el.disabled || el.readOnly) { skip('disabled or read-only'); continue; }
       if (!isVisible(el)) { skip('hidden textarea'); continue; }

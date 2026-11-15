@@ -211,3 +211,112 @@ export function searchQueries(value: string): string[] {
   }
   return [value, ...shorter];
 }
+
+// A skills list is joined with commas, and a skill can hold commas inside parentheses, as in "Linux (Ubuntu, RHEL)".
+export function splitSkills(value: string): string[] {
+  const skills: string[] = [];
+  let depth = 0;
+  let current = '';
+  for (const ch of value) {
+    if (ch === '(' || ch === '[') depth++;
+    if ((ch === ')' || ch === ']') && depth) depth--;
+    if ((ch === ',' || ch === ';' || ch === '\n') && !depth) {
+      skills.push(current);
+      current = '';
+    } else current += ch;
+  }
+  skills.push(current);
+  return skills.map((skill) => skill.replace(/^[\s•·*-]+/, '').trim()).filter(Boolean);
+}
+
+const withoutParens = (text: string) => text.replace(/\s*[([][^)\]]*[)\]]/g, '').trim();
+const insideParens = (text: string) => Array.from(text.matchAll(/[([]([^)\]]*)[)\]]/g), (match) => match[1].trim()).filter(Boolean);
+const unique = (items: string[]) => {
+  const seen = new Set<string>();
+  return items.map((item) => item.trim()).filter((item) => item.length > 1 && !seen.has(item.toLowerCase()) && seen.add(item.toLowerCase()));
+};
+
+// The names one resume skill goes by: itself, without its parentheses, each part of a slashed name,
+// and each name inside the parentheses. "Microsoft Entra ID (Azure AD)" is also "Azure AD".
+function skillNames(skill: string): string[] {
+  const base = withoutParens(skill);
+  return unique([skill, base, ...base.split(/\s*\/\s*/), ...insideParens(skill).flatMap((inner) => inner.split(/\s*[,/;]\s*/))]);
+}
+
+// Searches to try for one skill. A skill list rarely holds a resume's wording whole, so after the
+// skill's own names come shorter forms of it, with words dropped from the end.
+export function skillQueries(skill: string): string[] {
+  const names = skillNames(skill);
+  const shorter = names.filter((name) => !/[()[\]/,]/.test(name)).flatMap((name) => {
+    const words = name.split(/\s+/);
+    const out: string[] = [];
+    for (let count = words.length - 1; count >= 1 && out.length < 2; count--) {
+      if (!STOP.has(words[count - 1].toLowerCase())) out.push(words.slice(0, count).join(' '));
+    }
+    return out;
+  });
+  return unique([...names, ...shorter]).slice(0, 5);
+}
+
+const STOP = new Set(['and', 'of', 'the', 'for', 'in', 'with', 'to', 'a', 'an', '&']);
+// A plural s comes off, so VLANs fits VLAN and REST APIs fits REST API.
+const singular = (word: string) => (word.length > 3 && /[^s]s$/.test(word) ? word.slice(0, -1) : word);
+// Words keep + and #, so C, C# and C++ stay apart. Lower case first keeps JavaScript one word, apart from Java.
+const skillWords = (text: string) => text.toLowerCase().replace(/[^a-z0-9+#]+/g, ' ').trim().split(' ').filter(Boolean).map(singular);
+// A version or year says which release, not which skill, so Python 3 fits Python and Windows Server 2019 fits Windows Server.
+const isVersion = (word: string) => /^(v?\d{1,2}(\.\d+)*|(19|20)\d\d)$/.test(word);
+const meaningful = (words: string[]) => words.filter((word) => !STOP.has(word) && !isVersion(word));
+const initials = (words: string[]) => words.filter((word) => !STOP.has(word)).map((word) => word[0]).join('');
+
+function containsRun(haystack: string[], needle: string[]): boolean {
+  if (!needle.length) return false;
+  for (let start = 0; start <= haystack.length - needle.length; start++) {
+    if (needle.every((word, offset) => haystack[start + offset] === word)) return true;
+  }
+  return false;
+}
+
+// How well one name for the resume skill fits one name for a listed skill, from 0 to 100.
+function fit(wanted: string, offered: string): number {
+  const a = skillWords(wanted);
+  const b = skillWords(offered);
+  if (!a.length || !b.length) return 0;
+  // Case, spacing and . - _ / can differ, as in Node.js and NodeJS.
+  const squeeze = (text: string) => text.toLowerCase().replace(/[^a-z0-9+#]+/g, '');
+  if (a.join('') === b.join('') || squeeze(wanted) === squeeze(offered)) return 100;
+  // MFA fits Multi-Factor Authentication, and Single Sign-On fits SSO.
+  const acronym = (short: string[], long: string[]) => short.length === 1 && /^[a-z]{2,6}$/.test(short[0]) && long.length >= 2 && initials(long) === short[0];
+  if (acronym(a, b) || acronym(b, a)) return 90;
+  const ma = meaningful(a);
+  const mb = meaningful(b);
+  if (ma.length && ma.join('') === mb.join('')) return 95;
+  // The listed skill holds every word of the resume's, as in PowerShell and Windows PowerShell.
+  if (containsRun(b, ma) || containsRun(mb, ma)) return 80 - Math.min(10, mb.length - ma.length);
+  // The resume's holds the listed one, as in Microsoft Entra ID and Microsoft Entra. It has to cover
+  // most of the resume's words, so Cisco alone never stands in for Cisco UCS.
+  if (mb.length && (containsRun(a, mb) || containsRun(ma, mb)) && mb.length * 2 > ma.length) return 70 - Math.min(10, ma.length - mb.length);
+  const shared = ma.filter((word) => mb.includes(word)).length;
+  const overlap = shared / Math.max(ma.length, mb.length);
+  return overlap >= 0.6 ? Math.round(50 + overlap * 10) : 0;
+}
+
+// Picks the listed skill closest to one from the resume, or -1 when none is close. A listed skill's
+// own parentheses count as another name for it, so "Amazon Web Services (AWS)" fits AWS.
+// Among equal fits the one with the fewest words wins.
+export function chooseSkill(skill: string, options: string[]): number {
+  const wanted = skillNames(skill);
+  let best = -1;
+  let bestScore = 0;
+  let bestLength = Infinity;
+  options.forEach((option, index) => {
+    const offered = unique([option, withoutParens(option), ...insideParens(option)]);
+    const score = Math.max(0, ...wanted.flatMap((name) => offered.map((other) => fit(name, other))));
+    const length = skillWords(option).length;
+    if (score > bestScore || (score && score === bestScore && length < bestLength)) {
+      best = index;
+      bestScore = score;
+      bestLength = length;
+    }
+  });
+  return best;
+}

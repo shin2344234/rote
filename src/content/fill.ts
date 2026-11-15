@@ -1,10 +1,10 @@
 // Writes values into page controls. Each strategy works by widget behavior, so a
 // new site needs no code unless it uses a control type not handled here.
 import { CATALOG_BY_KEY } from '../engine/catalog';
-import { chooseAddress, chooseOption, PLACEHOLDER_OPTION, savedChoices, searchQueries } from '../engine/options';
+import { chooseAddress, chooseOption, chooseSkill, PLACEHOLDER_OPTION, savedChoices, searchQueries, skillQueries, splitSkills } from '../engine/options';
 import { createLogger, errorData } from '../shared/log';
 import type { AddressPlace, FilePayload, FillItem, FillResult } from '../shared/types';
-import { chipElements, chipText, chosenChips, clean, comboboxHasValue, handles, isVisible, workdayDateDisplay, workdayDateShown, optionLabel, sectionOf, selectHasValue, shownValue, type Handle } from './scan';
+import { chipElements, chipText, chosenChips, clean, comboboxHasValue, handles, isVisible, isWorkdayPicker, workdayDateDisplay, workdayDateShown, workdayLabel, workdayPicked, workdayPills, optionLabel, sectionOf, selectHasValue, shownValue, type Handle } from './scan';
 
 let currentRun: string | undefined;
 const log = createLogger('fill', () => currentRun);
@@ -134,6 +134,167 @@ async function fillWorkdayDate(fieldId: string, el: HTMLInputElement, value: str
   const undo = async () => { if (previous) await typeDigits(liveHandle(fieldId)?.el as HTMLInputElement ?? el, previous); };
   if (shown && Number(shown) === Number(value)) return { ok: true, detail: 'typed', undo };
   return { ok: false, detail: shown ? `page shows ${shown.length} other digits` : 'page did not take the typed digits', undo };
+}
+
+function pressKey(el: Element, key: string, keyCode: number): void {
+  const init = { key, code: key, keyCode, which: keyCode, bubbles: true, composed: true, cancelable: true };
+  el.dispatchEvent(new KeyboardEvent('keydown', init));
+  el.dispatchEvent(new KeyboardEvent('keypress', init));
+  el.dispatchEvent(new KeyboardEvent('keyup', init));
+}
+
+// Case, spacing and . - _ / can differ between the resume and a pill.
+const skillKey = (text: string) => text.toLowerCase().replace(/[\s.\-_/]+/g, '');
+
+// The search results. Workday draws the picked skills the same way, and not always inside a
+// selectedItem, so once any row has a checkbox only rows with one count. Pills have none.
+function workdayResults(): HTMLElement[] {
+  const rows = Array.from(document.querySelectorAll<HTMLElement>('[data-automation-id=menuItem]'));
+  const found = (rows.length ? rows : Array.from(document.querySelectorAll<HTMLElement>('[data-automation-id=promptOption],[role=option]')))
+    .filter((row) => !row.closest('[data-automation-id=selectedItem]') && row.getBoundingClientRect().height > 0);
+  const boxed = found.filter((row) => row.querySelector('input[type=checkbox],[data-automation-id=checkboxPanel]'));
+  return boxed.length ? boxed : found.filter((row) => !workdayPickedLabels().has(workdayLabel(row)));
+}
+
+const workdayPickedLabels = () => new Set(Array.from(document.querySelectorAll<HTMLElement>('[data-automation-id=selectedItem]'), workdayLabel));
+
+// Workday sets aria-selected on the result the keyboard highlights, which after a search is the first
+// one, so aria-selected says nothing about a row that has its own checkbox.
+function resultTicked(row: HTMLElement): boolean {
+  const mark = row.querySelector('[data-automation-checked]')?.getAttribute('data-automation-checked');
+  if (mark) return mark === 'Checked';
+  const box = row.querySelector<HTMLInputElement>('input[type=checkbox]');
+  if (box) return box.checked || box.getAttribute('aria-checked') === 'true';
+  return row.getAttribute('aria-checked') === 'true' || row.getAttribute('aria-selected') === 'true';
+}
+
+const resultLabels = () => workdayResults().map(workdayLabel).join('\n');
+
+// Workday empties its results while a search loads and draws the new ones up to a second or more later.
+// Reading the empty list, or the last search's, gave one skill the results meant for the one before.
+// The results count once they are not empty, differ from the last search's, and hold still.
+async function searchWorkday(input: HTMLInputElement, query: string): Promise<HTMLElement[]> {
+  const old = resultLabels();
+  focusField(input);
+  setNativeValue(input, query);
+  input.dispatchEvent(new InputEvent('input', { bubbles: true, composed: true, inputType: 'insertText', data: query }));
+  await delay(150);
+  pressKey(input, 'Enter', 13);
+  const started = Date.now();
+  let last = '';
+  let steady = 0;
+  while (Date.now() - started < 8000) {
+    await delay(150);
+    const now = resultLabels();
+    steady = now === last ? steady + 1 : 0;
+    last = now;
+    const waited = Date.now() - started;
+    // The same results as the last search can be right, and so can none at all, but only after a wait.
+    const fresh = now && now !== old;
+    if (fresh && steady >= 2) break;
+    if (now && waited > 3500 && steady >= 3) break;
+    if (!now && waited > 4000) break;
+  }
+  return workdayResults();
+}
+
+async function clearWorkdaySearch(input: HTMLInputElement): Promise<void> {
+  if (!input.value) return;
+  setNativeValue(input, '');
+  input.dispatchEvent(new InputEvent('input', { bubbles: true, composed: true, inputType: 'deleteContentBackward' }));
+  await delay(100);
+}
+
+const pillFor = (input: HTMLInputElement, label: string) => workdayPicked(input).some((pill) => skillKey(pill) === skillKey(label));
+
+// Ticks one result. A result that is already ticked stays as it is, since a second click would untick it.
+async function tickResult(row: HTMLElement, input: () => HTMLInputElement): Promise<boolean> {
+  const label = workdayLabel(row);
+  if (resultTicked(row) || pillFor(input(), label)) return true;
+  const targets = [row.querySelector<HTMLElement>('input[data-automation-id=checkboxPanel],input[type=checkbox]'), row.querySelector<HTMLElement>('[data-automation-id=promptLeafNode]'), row];
+  for (const target of targets) {
+    if (!target) continue;
+    target.scrollIntoView({ block: 'nearest' });
+    pressSequence(target);
+    await delay(250);
+    if (pillFor(input(), label) || (row.isConnected && resultTicked(row))) return true;
+  }
+  return pillFor(input(), label);
+}
+
+// Workday's Skills box takes one skill per search and ignores a typed list. Ticking the result's
+// checkbox adds it, and clicking the row does nothing. Each skill tries shorter searches until one
+// offers a close fit.
+async function fillWorkdayPicker(fieldId: string, el: HTMLInputElement, value: string): Promise<{ ok: boolean; detail: string; chosen?: string; undo: () => Promise<void> }> {
+  const current = () => (liveHandle(fieldId)?.el ?? el) as HTMLInputElement;
+  const before = workdayPicked(el);
+  const wanted = splitSkills(value);
+  const chosen = new Map<string, string>();
+  const offeredFor = new Map<string, string[]>();
+  el.scrollIntoView({ block: 'center' });
+  const addSkill = async (skill: string) => {
+    const offered = offeredFor.get(skill) ?? [];
+    offeredFor.set(skill, offered);
+    for (const query of skillQueries(skill)) {
+      const rows = await searchWorkday(current(), query);
+      const labels = rows.map(workdayLabel);
+      offered.push(...labels.slice(0, 8));
+      const index = chooseSkill(skill, labels);
+      if (index >= 0 && (await tickResult(rows[index], current))) {
+        chosen.set(skill, labels[index]);
+        log.info('workday.skillAdded', { skill, query, chosen: labels[index], pill: pillFor(current(), labels[index]) });
+        break;
+      }
+    }
+    await clearWorkdaySearch(current());
+  };
+  const hasPill = (skill: string) => {
+    const label = chosen.get(skill);
+    return Boolean(label && pillFor(current(), label));
+  };
+  for (const skill of wanted) {
+    const have = workdayPicked(current()).find((label) => skillKey(label) === skillKey(skill));
+    if (have) chosen.set(skill, have);
+    else await addSkill(skill);
+  }
+  // The report comes from the pills on the page, not from what the clicks were meant to do. A skill
+  // that was chosen but has no pill gets one more try.
+  await delay(300);
+  for (const skill of wanted.filter((skill) => chosen.has(skill) && !hasPill(skill))) {
+    log.info('workday.skillNoPill', { skill, chosen: chosen.get(skill) });
+    chosen.delete(skill);
+    await addSkill(skill);
+  }
+  const input = current();
+  pressEscape(input);
+  blurField(input);
+  await delay(300);
+  const picked = [...new Set(wanted.filter(hasPill).map((skill) => chosen.get(skill) as string))];
+  const missing = wanted.filter((skill) => !hasPill(skill));
+  for (const skill of missing) {
+    log.info('workday.skillMissed', { skill, chosen: chosen.get(skill) ?? '', offered: [...new Set(offeredFor.get(skill) ?? [])].slice(0, 12) });
+  }
+  log.debug('workday.picker', { wanted: wanted.length, picked: picked.length, missing: missing.length });
+
+  const undo = async () => {
+    const keep = new Set(before.map(skillKey));
+    for (let attempt = 0; attempt < 100; attempt++) {
+      const pill = workdayPills(current()).find((candidate) => !keep.has(skillKey(workdayLabel(candidate))));
+      const remove = pill?.querySelector<HTMLElement>('[data-automation-id*=delete i],[aria-label*=remove i],[aria-label*=delete i],button,[role=button]');
+      if (!remove) break;
+      pressSequence(remove);
+      await delay(150);
+    }
+  };
+  const unkept = missing.filter((skill) => chosen.has(skill));
+  const absent = missing.filter((skill) => !chosen.has(skill));
+  const notes = [
+    absent.length ? `Workday offered nothing close to ${absent.join(', ')}` : '',
+    unkept.length ? `Workday did not keep ${unkept.map((skill) => `${skill} as ${chosen.get(skill)}`).join(', ')}` : '',
+  ].filter(Boolean);
+  if (!picked.length) return { ok: false, detail: `added none of the ${wanted.length} skills; ${notes.join('; ')}`, undo };
+  const detail = `added ${picked.length} of ${wanted.length} skills${notes.length ? `; check the rest, ${notes.join('; ')}` : ''}`;
+  return { ok: true, detail, chosen: picked.join(', '), undo };
 }
 
 function fillContentEditable(el: HTMLElement, value: string): { ok: boolean; detail: string; undo: () => void } {
@@ -460,6 +621,7 @@ function holdsValue({ el, kind, optionEls }: Handle): boolean {
   if (kind === 'select') return selectHasValue(el as HTMLSelectElement);
   if (kind === 'combobox') return comboboxHasValue(el);
   if (kind === 'contenteditable') return Boolean(el.textContent?.trim());
+  if (isWorkdayPicker(el) && workdayPicked(el).length) return true;
   const shownDate = workdayDateShown(el);
   if (shownDate !== null) return Boolean(shownDate);
   return Boolean((el as HTMLInputElement).value?.trim());
@@ -475,7 +637,8 @@ async function fillOne(item: FillItem): Promise<FillResult> {
     case 'text':
     case 'textarea':
     case 'date':
-      outcome = workdayDateDisplay(el) ? await fillWorkdayDate(item.fieldId, el as HTMLInputElement, item.value) : fillText(el as HTMLInputElement, item.value);
+      if (isWorkdayPicker(el)) outcome = await fillWorkdayPicker(item.fieldId, el, item.value);
+      else outcome = workdayDateDisplay(el) ? await fillWorkdayDate(item.fieldId, el as HTMLInputElement, item.value) : fillText(el as HTMLInputElement, item.value);
       break;
     case 'contenteditable':
       outcome = fillContentEditable(el, item.value);
@@ -626,6 +789,7 @@ export function readField(fieldId: string): string {
   if (kind === 'radio' || kind === 'checkbox') return optionEls.filter(isChecked).map(optionLabel).join(', ');
   if (kind === 'select') return Array.from((el as HTMLSelectElement).selectedOptions, (option) => clean(option.textContent)).join(', ');
   if (kind === 'contenteditable') return el.textContent?.trim() ?? '';
+  if (isWorkdayPicker(el)) return workdayPicked(el).join(', ') || el.value;
   const shownDate = workdayDateShown(el);
   if (shownDate !== null) return shownDate;
   if (kind === 'combobox' && handle.multi && chosenChips(el).length) return chosenChips(el).join(', ');

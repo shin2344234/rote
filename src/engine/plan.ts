@@ -30,6 +30,12 @@ function datePart(stored: string, part: 'Month' | 'Year', field: ScannedField): 
   return digits ? month.padStart(2, '0') : MONTH_NAMES[Number(month) - 1];
 }
 
+// Workday rejects linkedin.com/in/name without www, and every form takes the full address.
+export function linkedinUrl(stored: string): string {
+  const match = stored.trim().match(/^(?:https?:\/\/)?(?:[a-z]{2,3}\.)?linkedin\.com\/(in|pub)\/([^/?#\s]+)/i);
+  return match ? `https://www.linkedin.com/${match[1].toLowerCase()}/${match[2]}` : stored;
+}
+
 export function valueFor(entry: CatalogEntry, index: number, profile: Profile, field: ScannedField): string {
   const [group, sub] = entry.key.split('.');
   if (group === 'work' || group === 'edu') {
@@ -43,6 +49,7 @@ export function valueFor(entry: CatalogEntry, index: number, profile: Profile, f
     return record[sub] ?? '';
   }
   if (entry.key === 'skills') return profile.skills.join(', ');
+  if (entry.key === 'linkedin') return linkedinUrl(profile.fields.linkedin ?? '');
   return profile.fields[entry.key] ?? '';
 }
 
