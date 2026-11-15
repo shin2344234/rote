@@ -27,6 +27,9 @@
       <div><label for="workExperience-${n}--location">Location</label><input id="workExperience-${n}--location" name="location"></div>`;
     blocks.appendChild(block);
   }
+  // Workday keeps its own copy of each value and only takes the typed text when the field loses focus.
+  window.saved = {};
+  blocks.addEventListener('focusout', (event) => { if (event.target.id) window.saved[event.target.id] = event.target.value; });
   addBlock();
   document.getElementById('add').addEventListener('click', () => setTimeout(addBlock, 50));
   document.querySelector('form').addEventListener('submit', (event) => {

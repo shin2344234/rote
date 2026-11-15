@@ -253,7 +253,16 @@ test('adds a work block for each job and ticks current role', async ({ shared: c
 
 test('fills each Workday block added after the first, however Workday numbers them', async ({ shared: context, extensionId }) => {
   const { target, panel } = await openPanelFor(context, extensionId, `${BASE}/workday-experience.html`);
+  // In Chrome the side panel has focus during Fill, so the page gets no focus or blur events of its own.
+  // Playwright reports every page as focused unless this is turned off.
+  const cdp = await context.newCDPSession(target);
+  await cdp.send('Emulation.setFocusEmulationEnabled', { enabled: false });
+  await panel.bringToFront();
+  expect(await target.evaluate(() => document.hasFocus())).toBe(false);
   await scanAndFill(panel);
+  const saved = await target.evaluate(() => (window as unknown as { saved: Record<string, string> }).saved);
+  expect(saved['workExperience-8--companyName']).toBe('Acme Corp');
+  expect(saved['workExperience-22--jobTitle']).toBe('Software Engineer');
   await expect(target.locator('[id="workExperience-8--companyName"]')).toHaveValue('Acme Corp');
   await expect(target.locator('[id="workExperience-22--companyName"]')).toHaveValue('Globex Inc');
   await expect(target.locator('[id="workExperience-22--jobTitle"]')).toHaveValue('Software Engineer');

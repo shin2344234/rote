@@ -24,6 +24,22 @@ function fire(el: Element, type: string): void {
   el.dispatchEvent(new Event(type, { bubbles: true, composed: true }));
 }
 
+// Fill runs while the side panel has focus. Chrome then moves the active element on focus() and blur()
+// but fires no focus events, and Workday only keeps a typed value when the field fires blur.
+function focusField(el: HTMLElement): void {
+  el.focus();
+  if (document.hasFocus()) return;
+  el.dispatchEvent(new FocusEvent('focus', { composed: true }));
+  el.dispatchEvent(new FocusEvent('focusin', { bubbles: true, composed: true }));
+}
+
+function blurField(el: HTMLElement): void {
+  el.blur();
+  if (document.hasFocus()) return;
+  el.dispatchEvent(new FocusEvent('blur', { composed: true }));
+  el.dispatchEvent(new FocusEvent('focusout', { bubbles: true, composed: true }));
+}
+
 // Bypasses framework wrappers on the element so React and others see a real change.
 function setNativeValue(el: HTMLInputElement | HTMLTextAreaElement, value: string): void {
   const proto = el instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
@@ -64,11 +80,11 @@ function clearHighlights(): void {
 function fillText(el: HTMLInputElement | HTMLTextAreaElement, value: string): { ok: boolean; detail: string; undo: () => void } {
   const previous = el.value;
   const write = (next: string) => {
-    el.focus();
+    focusField(el);
     setNativeValue(el, next);
     el.dispatchEvent(new InputEvent('input', { bubbles: true, composed: true, inputType: 'insertText', data: next }));
     fire(el, 'change');
-    el.blur();
+    blurField(el);
   };
   write(value);
   const undo = () => write(previous);
@@ -81,7 +97,7 @@ function fillText(el: HTMLInputElement | HTMLTextAreaElement, value: string): { 
 
 function fillContentEditable(el: HTMLElement, value: string): { ok: boolean; detail: string; undo: () => void } {
   const previous = el.innerHTML;
-  el.focus();
+  focusField(el);
   document.getSelection()?.selectAllChildren(el);
   const inserted = document.execCommand('insertText', false, value);
   if (!inserted || !el.textContent?.includes(value.slice(0, 20))) {
@@ -89,7 +105,7 @@ function fillContentEditable(el: HTMLElement, value: string): { ok: boolean; det
     fire(el, 'input');
   }
   fire(el, 'change');
-  el.blur();
+  blurField(el);
   return { ok: Boolean(el.textContent?.trim()), detail: inserted ? 'insertText' : 'textContent', undo: () => { el.innerHTML = previous; fire(el, 'input'); } };
 }
 
@@ -109,12 +125,12 @@ function fillSelect(el: HTMLSelectElement, key: string, value: string): { ok: bo
   }
   const previous = Array.from(el.selectedOptions, (option) => option.index);
   const write = (indexes: number[]) => {
-    el.focus();
+    focusField(el);
     if (el.multiple) Array.from(el.options).forEach((option, index) => { option.selected = indexes.includes(index); });
     else el.selectedIndex = indexes[0] ?? -1;
     fire(el, 'input');
     fire(el, 'change');
-    el.blur();
+    blurField(el);
   };
   write(picked.indexes);
   return { ok: picked.indexes.every((index) => el.options[index].selected), detail: picked.detail, chosen: picked.indexes.map((index) => labels[index]).join(', '), undo: () => write(previous) };
@@ -308,12 +324,12 @@ async function undoCombobox(handle: Handle, input: HTMLInputElement | null, befo
       if (before.text) return;
       throw new Error('the page shows the choice outside its input, so it cannot be cleared');
     }
-    input.focus();
+    focusField(input);
     setNativeValue(input, before.text);
     input.dispatchEvent(new InputEvent('input', { bubbles: true, composed: true, inputType: 'insertText', data: before.text }));
     fire(input, 'change');
     pressEscape(input);
-    input.blur();
+    blurField(input);
     await delay(50);
     if (input.value !== before.text) throw new Error('the page kept the filled value');
     return;
@@ -337,7 +353,7 @@ async function fillCombobox(handle: Handle, key: string, value: string, place?: 
   const undo = () => undoCombobox(handle, input, before);
   el.scrollIntoView({ block: 'center' });
   pressSequence(el);
-  el.focus();
+  focusField(el);
 
   const pick = async (options: HTMLElement[], how: string) => {
     const labels = options.map((option) => clean(option.textContent));
@@ -382,7 +398,7 @@ async function fillCombobox(handle: Handle, key: string, value: string, place?: 
       pressEscape(input);
       fire(input, 'change');
       // List-only widgets clear unmatched text on blur, so only trust what survives it.
-      input.blur();
+      blurField(input);
       await delay(100);
       if (input.value) return { ok: true, detail: 'kept typed text; no list option fit', undo };
       log.warn('combobox.typedTextCleared', { key, optionCount: options.length, suggestions: options.slice(0, 40).map((option) => clean(option.textContent)) });
