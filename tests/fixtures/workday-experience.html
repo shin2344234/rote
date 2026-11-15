@@ -1,0 +1,36 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Workday style work experience</title>
+<!-- Workday numbers each block by an internal counter, as in workExperience-8 and workExperience-22. -->
+<form>
+  <div data-automation-id="workExperienceSection" id="section">
+    <h3>Work Experience</h3>
+    <div id="blocks"></div>
+    <button type="button" data-automation-id="add-button" id="add">Add Another</button>
+  </div>
+  <button type="submit" id="submit">Save and Continue</button>
+</form>
+<script>
+  const blocks = document.getElementById('blocks');
+  let count = 0;
+  let counter = 8;
+  function addBlock() {
+    count++;
+    const n = counter;
+    counter += 14;
+    const block = document.createElement('div');
+    block.setAttribute('role', 'group');
+    block.setAttribute('aria-labelledby', `heading-${n}`);
+    block.innerHTML = `<h4 id="heading-${n}">Professional Experience ${count}</h4>
+      <div><label for="workExperience-${n}--jobTitle">Job Title</label><input id="workExperience-${n}--jobTitle" name="jobTitle"></div>
+      <div><label for="workExperience-${n}--companyName">Company</label><input id="workExperience-${n}--companyName" name="companyName"></div>
+      <div><label for="workExperience-${n}--location">Location</label><input id="workExperience-${n}--location" name="location"></div>`;
+    blocks.appendChild(block);
+  }
+  addBlock();
+  document.getElementById('add').addEventListener('click', () => setTimeout(addBlock, 50));
+  document.querySelector('form').addEventListener('submit', (event) => {
+    event.preventDefault();
+    document.body.dataset.submitted = 'yes';
+  });
+</script>

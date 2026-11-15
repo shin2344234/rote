@@ -276,6 +276,16 @@ describe('buildPlan', () => {
     expect(rows.map((row) => row.value).filter(Boolean)).toEqual(['Dev', 'Acme', 'QA', 'Globex']);
   });
 
+  it('ranks Workday blocks numbered 8 and 22 as jobs 1 and 2', () => {
+    // Copied from a second Workday log: two-digit block numbers came out as jobs 0 and 14, and job 14 does not exist.
+    const block = (stem: number, heading: string) => [
+      field({ id: `workExperience-${stem}--jobTitle`, name: 'jobTitle', label: 'Job Title', section: heading }),
+      field({ id: `workExperience-${stem}--companyName`, name: 'companyName', label: 'Company', section: heading }),
+    ];
+    const rows = plan([...block(8, 'Professional Experience 1'), ...block(22, 'Professional Experience 2')]);
+    expect(rows.map((row) => [row.index, row.value, row.status])).toEqual([[0, 'Dev', 'ready'], [0, 'Acme', 'ready'], [1, 'QA', 'ready'], [1, 'Globex', 'ready']]);
+  });
+
   it('numbers blocks by a heading when ids say nothing', () => {
     const rows = plan([
       field({ label: 'Company', section: 'Work Experience 1' }),

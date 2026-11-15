@@ -251,6 +251,19 @@ test('adds a work block for each job and ticks current role', async ({ shared: c
   await panel.close();
 });
 
+test('fills each Workday block added after the first, however Workday numbers them', async ({ shared: context, extensionId }) => {
+  const { target, panel } = await openPanelFor(context, extensionId, `${BASE}/workday-experience.html`);
+  await scanAndFill(panel);
+  await expect(target.locator('[id="workExperience-8--companyName"]')).toHaveValue('Acme Corp');
+  await expect(target.locator('[id="workExperience-22--companyName"]')).toHaveValue('Globex Inc');
+  await expect(target.locator('[id="workExperience-22--jobTitle"]')).toHaveValue('Software Engineer');
+  await expect(target.locator('[id="workExperience-36--jobTitle"]')).toHaveCount(0);
+  await expect(panel.locator('#status')).toContainText('added 1 work block');
+  await expect(target.locator('body')).not.toHaveAttribute('data-submitted', 'yes');
+  await target.close();
+  await panel.close();
+});
+
 test('saves a typed answer and fills it on the next scan', async ({ shared: context, extensionId }) => {
   const { target, panel } = await openPanelFor(context, extensionId, `${BASE}/plain.html`);
   await panel.click('#scan');

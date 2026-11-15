@@ -95,7 +95,7 @@ export function buildPlan(fields: ScannedField[], context: PlanContext): PlanRow
   const scored = fields.map((field) => ({ field, candidates: scoreField(field) }));
 
   // Find each repeating field's block from a small number in its id, then a shared id stem, then a numbered heading.
-  // Ids and headings may count from 0 or 1, so each source is shifted to start at 0 within its group.
+  // The numbers only give the order. Workday numbers its blocks 8 and 22, so each group's distinct values rank 0, 1, 2.
   const sources = new Map<ScannedField, { source: string; value: number }>();
   const stems = new Map<string, string[]>();
   // A stem only marks a block when fields share it. Builders that give every control its own field-1234 never repeat one.
@@ -119,8 +119,9 @@ export function buildPlan(fields: ScannedField[], context: PlanContext): PlanRow
       sources.set(field, { source: `stem:${repeat}`, value: seen.indexOf(stem) });
     } else if (heading !== null) sources.set(field, { source: `section:${repeat}`, value: heading });
   }
-  const minimums = new Map<string, number>();
-  for (const { source, value } of sources.values()) minimums.set(source, Math.min(minimums.get(source) ?? value, value));
+  const values = new Map<string, Set<number>>();
+  for (const { source, value } of sources.values()) values.set(source, (values.get(source) ?? new Set()).add(value));
+  const ranks = new Map([...values].map(([source, set]) => [source, [...set].sort((a, b) => a - b)]));
 
   const fileFields = fields.filter((field) => field.kind === 'file');
   const claimed = new Map<string, { row: PlanRow; raw: number }>();
@@ -177,7 +178,7 @@ export function buildPlan(fields: ScannedField[], context: PlanContext): PlanRow
     const found = entry.repeat ? sources.get(field) : undefined;
     row.key = entry.key;
     row.keyLabel = entry.label;
-    row.index = found ? found.value - (minimums.get(found.source) ?? 0) : 0;
+    row.index = found ? ranks.get(found.source)!.indexOf(found.value) : 0;
     row.score = top.score;
     if (entry.key === 'addressLine1') {
       const { city, state, postalCode } = context.profile.fields;
