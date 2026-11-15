@@ -1,7 +1,7 @@
 <!doctype html>
 <meta charset="utf-8">
 <title>Workday style work experience</title>
-<!-- Workday numbers each block by an internal counter, as in workExperience-8 and workExperience-22. -->
+<!-- Workday numbers each block by an internal counter, as in workExperience-8 and workExperience-122. -->
 <style>
   .date { display: inline-flex; gap: 4px; padding: 4px; border: 1px solid #888; }
   .date input { width: 1px; height: 1px; padding: 0; border: 0; }
@@ -17,7 +17,7 @@
 <script>
   const blocks = document.getElementById('blocks');
   let count = 0;
-  let counter = 8;
+  const numbers = [8, 122, 136];
   // Workday draws a date as digits in a box, over inputs too small to see, labelled only "Month" and "Year".
   function dateBox(n, which, label) {
     const id = `workExperience-${n}--${which}Date-dateSection`;
@@ -28,8 +28,7 @@
   }
   function addBlock() {
     count++;
-    const n = counter;
-    counter += 14;
+    const n = numbers[count - 1];
     const block = document.createElement('div');
     block.setAttribute('role', 'group');
     block.setAttribute('aria-labelledby', `heading-${n}`);
@@ -44,9 +43,24 @@
   // Workday keeps its own copy of each value and only takes the typed text when the field loses focus.
   // It then draws the field again as a new element with the same id.
   window.saved = {};
+  // A date box takes one typed digit at a time into the display beside it and empties itself.
+  // A whole value set at once is ignored. Two month digits move focus on to the year.
+  blocks.addEventListener('input', (event) => {
+    const input = event.target;
+    const part = input.id.match(/dateSection(Month|Year)-input$/)?.[1];
+    if (!part) return;
+    const display = input.parentElement.querySelector(`[data-automation-id="dateSection${part}-display"]`);
+    if (event.data && /^[0-9]$/.test(event.data)) {
+      const digits = /^[0-9]+$/.test(display.textContent) && display.textContent.length < (part === 'Month' ? 2 : 4) ? display.textContent : '';
+      display.textContent = digits + event.data;
+      window.saved[input.id] = display.textContent;
+      if (part === 'Month' && display.textContent.length === 2) input.parentElement.querySelector('[id$="dateSectionYear-input"]').focus();
+    }
+    input.value = '';
+  });
   blocks.addEventListener('focusout', (event) => {
     const input = event.target;
-    if (!input.id || input.type === 'checkbox') return;
+    if (!input.id || input.type === 'checkbox' || /dateSection/.test(input.id)) return;
     window.saved[input.id] = input.value;
     setTimeout(() => {
       if (!input.isConnected) return;

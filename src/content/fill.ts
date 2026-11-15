@@ -4,7 +4,7 @@ import { CATALOG_BY_KEY } from '../engine/catalog';
 import { chooseAddress, chooseOption, PLACEHOLDER_OPTION, savedChoices, searchQueries } from '../engine/options';
 import { createLogger, errorData } from '../shared/log';
 import type { AddressPlace, FilePayload, FillItem, FillResult } from '../shared/types';
-import { chipElements, chipText, chosenChips, clean, comboboxHasValue, handles, isVisible, optionLabel, sectionOf, selectHasValue, shownValue, type Handle } from './scan';
+import { chipElements, chipText, chosenChips, clean, comboboxHasValue, handles, isVisible, workdayDateDisplay, workdayDateShown, optionLabel, sectionOf, selectHasValue, shownValue, type Handle } from './scan';
 
 let currentRun: string | undefined;
 const log = createLogger('fill', () => currentRun);
@@ -105,6 +105,35 @@ function fillText(el: HTMLInputElement | HTMLTextAreaElement, value: string): { 
   const content = (text: string) => text.toLowerCase().replace(/[^\p{L}\p{N}]/gu, '');
   if (content(el.value) && content(el.value) === content(value)) return { ok: true, detail: 'page reformatted the value', undo };
   return { ok: false, detail: el.value ? 'page changed the value after it was set' : 'page cleared the value', undo };
+}
+
+// Workday's date boxes take one keystroke at a time. Each digit moves into a display beside the input, the
+// input empties, and a full month moves focus on to the year. A whole value set at once is ignored.
+async function typeDigits(el: HTMLInputElement, digits: string): Promise<void> {
+  focusField(el);
+  for (const ch of digits) {
+    const init = { key: ch, code: /\d/.test(ch) ? `Digit${ch}` : '', bubbles: true, composed: true, cancelable: true };
+    if (el.dispatchEvent(new KeyboardEvent('keydown', init))) {
+      el.dispatchEvent(new KeyboardEvent('keypress', init));
+      setNativeValue(el, el.value + ch);
+      el.dispatchEvent(new InputEvent('input', { bubbles: true, composed: true, inputType: 'insertText', data: ch }));
+    }
+    el.dispatchEvent(new KeyboardEvent('keyup', init));
+    await delay(20);
+  }
+  // A full month has already moved focus on to the year, and blurring then would take it back off.
+  if (document.activeElement === el) blurField(el);
+}
+
+async function fillWorkdayDate(fieldId: string, el: HTMLInputElement, value: string): Promise<{ ok: boolean; detail: string; undo: () => void | Promise<void> }> {
+  const previous = workdayDateShown(el) ?? '';
+  await typeDigits(el, value);
+  await delay(100);
+  const now = liveHandle(fieldId)?.el ?? el;
+  const shown = workdayDateShown(now) ?? '';
+  const undo = async () => { if (previous) await typeDigits(liveHandle(fieldId)?.el as HTMLInputElement ?? el, previous); };
+  if (shown && Number(shown) === Number(value)) return { ok: true, detail: 'typed', undo };
+  return { ok: false, detail: shown ? `page shows ${shown.length} other digits` : 'page did not take the typed digits', undo };
 }
 
 function fillContentEditable(el: HTMLElement, value: string): { ok: boolean; detail: string; undo: () => void } {
@@ -431,6 +460,8 @@ function holdsValue({ el, kind, optionEls }: Handle): boolean {
   if (kind === 'select') return selectHasValue(el as HTMLSelectElement);
   if (kind === 'combobox') return comboboxHasValue(el);
   if (kind === 'contenteditable') return Boolean(el.textContent?.trim());
+  const shownDate = workdayDateShown(el);
+  if (shownDate !== null) return Boolean(shownDate);
   return Boolean((el as HTMLInputElement).value?.trim());
 }
 
@@ -444,7 +475,7 @@ async function fillOne(item: FillItem): Promise<FillResult> {
     case 'text':
     case 'textarea':
     case 'date':
-      outcome = fillText(el as HTMLInputElement, item.value);
+      outcome = workdayDateDisplay(el) ? await fillWorkdayDate(item.fieldId, el as HTMLInputElement, item.value) : fillText(el as HTMLInputElement, item.value);
       break;
     case 'contenteditable':
       outcome = fillContentEditable(el, item.value);
@@ -595,6 +626,8 @@ export function readField(fieldId: string): string {
   if (kind === 'radio' || kind === 'checkbox') return optionEls.filter(isChecked).map(optionLabel).join(', ');
   if (kind === 'select') return Array.from((el as HTMLSelectElement).selectedOptions, (option) => clean(option.textContent)).join(', ');
   if (kind === 'contenteditable') return el.textContent?.trim() ?? '';
+  const shownDate = workdayDateShown(el);
+  if (shownDate !== null) return shownDate;
   if (kind === 'combobox' && handle.multi && chosenChips(el).length) return chosenChips(el).join(', ');
   if (kind === 'combobox') {
     const input = el.matches('input') ? (el as HTMLInputElement) : el.querySelector('input');

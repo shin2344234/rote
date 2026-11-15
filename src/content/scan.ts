@@ -173,10 +173,30 @@ function workdayDateLabel(el: HTMLElement): string {
   return match ? `${match[1].toLowerCase()} date ${match[2].toLowerCase()}` : '';
 }
 
-function workdayDateShown(el: HTMLElement): boolean {
+function workdayDateVisible(el: HTMLElement): boolean {
   let node = el.parentElement;
   for (let depth = 0; node && depth < 3; depth++, node = node.parentElement) if (isVisible(node)) return true;
   return false;
+}
+
+// Each digit typed into a Workday date box moves into a display beside it, and the input empties.
+export function workdayDateDisplay(el: HTMLElement): HTMLElement | null {
+  const part = el.id.match(WORKDAY_DATE)?.[2];
+  if (!part) return null;
+  let node = el.parentElement;
+  for (let depth = 0; node && depth < 3; depth++, node = node.parentElement) {
+    const display = node.querySelector<HTMLElement>(`[data-automation-id="dateSection${part}-display"]`);
+    if (display) return display;
+  }
+  return null;
+}
+
+// The digits Workday shows for a date box, '' while it shows its MM or YYYY prompt, or null for other inputs.
+export function workdayDateShown(el: HTMLElement): string | null {
+  const display = workdayDateDisplay(el);
+  if (!display) return null;
+  const text = clean(display.textContent);
+  return /^\d+$/.test(text) ? text : '';
 }
 
 function signalsOf(el: HTMLElement, legend = ''): FieldSignals {
@@ -390,8 +410,8 @@ export function scanFrame(frameId: number): ScanResult {
       if (el.disabled || el.readOnly) { skip('disabled or read-only'); continue; }
       if (el.getAttribute('aria-hidden') === 'true') { skip('aria-hidden helper input'); continue; }
       if (isSiteChrome(el)) { skip('footer or newsletter form'); continue; }
-      if (!isVisible(el) && !(WORKDAY_DATE.test(el.id) && workdayDateShown(el))) { skip('hidden input'); continue; }
-      add(el, el.type === 'date' || el.type === 'month' ? 'date' : 'text', { hasValue: Boolean(el.value.trim()) });
+      if (!isVisible(el) && !(WORKDAY_DATE.test(el.id) && workdayDateVisible(el))) { skip('hidden input'); continue; }
+      add(el, el.type === 'date' || el.type === 'month' ? 'date' : 'text', { hasValue: Boolean(workdayDateShown(el) ?? el.value.trim()) });
     } else if (el instanceof HTMLTextAreaElement) {
       if (el.disabled || el.readOnly) { skip('disabled or read-only'); continue; }
       if (!isVisible(el)) { skip('hidden textarea'); continue; }

@@ -295,6 +295,17 @@ describe('buildPlan', () => {
     expect(rows.map((row) => [row.index, row.status])).toEqual([[0, 'ready'], [1, 'ready'], [0, 'unmatched']]);
   });
 
+  it('ranks Workday block 116 after blocks 9 and 54', () => {
+    const block = (n: number, heading: string) => [
+      field({ id: `workExperience-${n}--jobTitle`, name: 'jobTitle', label: 'Job Title', section: heading }),
+      field({ id: `workExperience-${n}--companyName`, name: 'companyName', label: 'Company', section: heading }),
+    ];
+    const rows = plan([...block(9, 'Professional Experience 1'), ...block(54, 'Professional Experience 2'), ...block(116, 'Professional Experience 3')]);
+    expect(rows.map((row) => [row.key, row.index])).toEqual([
+      ['work.title', 0], ['work.company', 0], ['work.title', 1], ['work.company', 1], ['work.title', 2], ['work.company', 2],
+    ]);
+  });
+
   it('does not treat one-off builder ids as blocks', () => {
     const rows = plan([field({ id: 'field-1234', label: 'Company' }), field({ id: 'field-1235', label: 'Job Title' })]);
     expect(rows.map((row) => [row.key, row.index])).toEqual([['work.company', 0], ['work.title', 0]]);

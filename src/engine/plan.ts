@@ -100,7 +100,6 @@ export function buildPlan(fields: ScannedField[], context: PlanContext): PlanRow
   // Find each repeating field's block from a small number in its id, then a shared id stem, then a numbered heading.
   // The numbers only give the order. Workday numbers its blocks 8 and 22, so each group's distinct values rank 0, 1, 2.
   const sources = new Map<ScannedField, { source: string; value: number }>();
-  const stems = new Map<string, string[]>();
   // A stem only marks a block when fields share it. Builders that give every control its own field-1234 never repeat one.
   const stemCounts = new Map<string, number>();
   for (const { field } of scored) {
@@ -115,12 +114,10 @@ export function buildPlan(fields: ScannedField[], context: PlanContext): PlanRow
     const small = repeatIndex(field);
     const heading = sectionNumber(field);
     if (small !== null) sources.set(field, { source: `id:${repeat}`, value: small });
-    else if (stem !== null) {
-      const seen = stems.get(repeat) ?? [];
-      if (!seen.includes(stem)) seen.push(stem);
-      stems.set(repeat, seen);
-      sources.set(field, { source: `stem:${repeat}`, value: seen.indexOf(stem) });
-    } else if (heading !== null) sources.set(field, { source: `section:${repeat}`, value: heading });
+    // Workday's counter can pass 99 partway down a page, as in blocks 9, 54 and 116, so a long number
+    // ranks with the short ones by its value.
+    else if (stem !== null) sources.set(field, { source: `id:${repeat}`, value: Number(stem.match(/\d+$/)![0]) });
+    else if (heading !== null) sources.set(field, { source: `section:${repeat}`, value: heading });
   }
   const values = new Map<string, Set<number>>();
   for (const { source, value } of sources.values()) values.set(source, (values.get(source) ?? new Set()).add(value));
