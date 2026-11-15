@@ -120,3 +120,20 @@ export function repeatIndex(field: ScannedField): number | null {
   }
   return null;
 }
+
+// Workday names each block by an internal number, as in workExperience-123--jobTitle and workExperience-140--jobTitle.
+// The number says which block a field is in but not where that block sits, so the plan orders the stems itself.
+export function blockStem(field: ScannedField): string | null {
+  for (const text of [field.signals.id, field.signals.name, field.signals.automationId]) {
+    if (GENERIC_ID.test(text)) continue;
+    const match = text.match(/^(.*?[a-z][-_.]\d{3,})(?:[-_.]|$)/i);
+    if (match) return match[1];
+  }
+  return null;
+}
+
+// Headings like "Professional Experience 2" or "Education #1". "Step 2 of 5" is a page counter, not a block.
+export function sectionNumber(field: ScannedField): number | null {
+  const match = field.signals.section.trim().match(/(?<!\bof)\s#?(\d{1,2})$/i);
+  return match ? Number(match[1]) : null;
+}

@@ -1,7 +1,7 @@
 // Turns scanned fields and the profile into a fill plan and a list of profile gaps.
 import type { BankAnswer, PlanRow, Profile, ScannedField, RowStatus } from '../shared/types';
 import { CATALOG, CATALOG_BY_KEY, type CatalogEntry } from './catalog';
-import { isBlocked, LOW_SCORE, READY_SCORE, repeatIndex, scoreField } from './match';
+import { blockStem, isBlocked, LOW_SCORE, READY_SCORE, repeatIndex, scoreField, sectionNumber } from './match';
 import { chooseOption, savedChoices } from './options';
 import { normalize, readDate, similarity } from './text';
 
@@ -94,13 +94,33 @@ function hostOf(url: string): string {
 export function buildPlan(fields: ScannedField[], context: PlanContext): PlanRow[] {
   const scored = fields.map((field) => ({ field, candidates: scoreField(field) }));
 
-  // Repeating sections may count from 0 or 1, so shift each group to start at 0.
-  const minimums = new Map<string, number>();
-  for (const { field, candidates } of scored) {
-    const entry = candidates[0] && CATALOG_BY_KEY.get(candidates[0].key);
-    const index = repeatIndex(field);
-    if (entry?.repeat && index !== null) minimums.set(entry.repeat, Math.min(minimums.get(entry.repeat) ?? index, index));
+  // Find each repeating field's block from a small number in its id, then a shared id stem, then a numbered heading.
+  // Ids and headings may count from 0 or 1, so each source is shifted to start at 0 within its group.
+  const sources = new Map<ScannedField, { source: string; value: number }>();
+  const stems = new Map<string, string[]>();
+  // A stem only marks a block when fields share it. Builders that give every control its own field-1234 never repeat one.
+  const stemCounts = new Map<string, number>();
+  for (const { field } of scored) {
+    const stem = blockStem(field);
+    if (stem !== null) stemCounts.set(stem, (stemCounts.get(stem) ?? 0) + 1);
   }
+  for (const { field, candidates } of scored) {
+    const repeat = candidates[0] && CATALOG_BY_KEY.get(candidates[0].key)?.repeat;
+    if (!repeat) continue;
+    const found = blockStem(field);
+    const stem = found !== null && (stemCounts.get(found) ?? 0) > 1 ? found : null;
+    const small = repeatIndex(field);
+    const heading = sectionNumber(field);
+    if (small !== null) sources.set(field, { source: `id:${repeat}`, value: small });
+    else if (stem !== null) {
+      const seen = stems.get(repeat) ?? [];
+      if (!seen.includes(stem)) seen.push(stem);
+      stems.set(repeat, seen);
+      sources.set(field, { source: `stem:${repeat}`, value: seen.indexOf(stem) });
+    } else if (heading !== null) sources.set(field, { source: `section:${repeat}`, value: heading });
+  }
+  const minimums = new Map<string, number>();
+  for (const { source, value } of sources.values()) minimums.set(source, Math.min(minimums.get(source) ?? value, value));
 
   const fileFields = fields.filter((field) => field.kind === 'file');
   const claimed = new Map<string, { row: PlanRow; raw: number }>();
@@ -154,10 +174,10 @@ export function buildPlan(fields: ScannedField[], context: PlanContext): PlanRow
     }
 
     const entry = CATALOG_BY_KEY.get(top.key)!;
-    const rawIndex = entry.repeat ? repeatIndex(field) : null;
+    const found = entry.repeat ? sources.get(field) : undefined;
     row.key = entry.key;
     row.keyLabel = entry.label;
-    row.index = rawIndex === null ? 0 : rawIndex - (minimums.get(entry.repeat!) ?? 0);
+    row.index = found ? found.value - (minimums.get(found.source) ?? 0) : 0;
     row.score = top.score;
     if (entry.key === 'addressLine1') {
       const { city, state, postalCode } = context.profile.fields;

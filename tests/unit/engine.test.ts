@@ -261,6 +261,35 @@ describe('buildPlan', () => {
     expect(rows.map((row) => row.value)).toEqual(['Acme', 'Globex']);
   });
 
+  it('numbers Workday blocks by their shared id stem, in page order', () => {
+    // Copied from a Workday report: the second block's number is larger, and its description heading reads only "To".
+    const block = (stem: number, heading: string) => [
+      field({ id: `workExperience-${stem}--jobTitle`, name: 'jobTitle', label: 'Job Title', section: heading }),
+      field({ id: `workExperience-${stem}--companyName`, name: 'companyName', label: 'Company', section: heading }),
+      field({ id: `workExperience-${stem}--roleDescription`, name: 'roleDescription', label: 'Role Description', section: 'To' }, { kind: 'textarea' }),
+    ];
+    const rows = plan([...block(123, 'Professional Experience 1'), ...block(140, 'Professional Experience 2')]);
+    expect(rows.map((row) => [row.key, row.index, row.status])).toEqual([
+      ['work.title', 0, 'ready'], ['work.company', 0, 'ready'], ['work.description', 0, 'missing'],
+      ['work.title', 1, 'ready'], ['work.company', 1, 'ready'], ['work.description', 1, 'missing'],
+    ]);
+    expect(rows.map((row) => row.value).filter(Boolean)).toEqual(['Dev', 'Acme', 'QA', 'Globex']);
+  });
+
+  it('numbers blocks by a heading when ids say nothing', () => {
+    const rows = plan([
+      field({ label: 'Company', section: 'Work Experience 1' }),
+      field({ label: 'Company', section: 'Work Experience 2' }),
+      field({ label: 'Company', section: 'Step 2 of 5' }),
+    ]);
+    expect(rows.map((row) => [row.index, row.status])).toEqual([[0, 'ready'], [1, 'ready'], [0, 'unmatched']]);
+  });
+
+  it('does not treat one-off builder ids as blocks', () => {
+    const rows = plan([field({ id: 'field-1234', label: 'Company' }), field({ id: 'field-1235', label: 'Job Title' })]);
+    expect(rows.map((row) => [row.key, row.index])).toEqual([['work.company', 0], ['work.title', 0]]);
+  });
+
   it('formats dates to the control', () => {
     const value = (signals: Partial<FieldSignals>, kind: ScannedField['kind'] = 'text') => plan([field({ section: 'Work Experience', label: 'Start Date', ...signals }, { kind })])[0].value;
     expect(value({})).toBe('03/2021');
