@@ -307,6 +307,21 @@ describe('buildPlan', () => {
     expect(value({ inputType: 'date' }, 'date')).toBe('2021-03-01');
   });
 
+  it('gives Workday month boxes digits and dropdowns month names', () => {
+    const month = (extra: Partial<ScannedField>, signals: Partial<FieldSignals> = {}) =>
+      plan([field({ section: 'Work Experience', label: 'start date month', ...signals }, extra)])[0];
+    expect(month({ role: 'spinbutton' })).toMatchObject({ key: 'work.startMonth', value: '03' });
+    expect(month({}, { id: 'workExperience-5--startDate-dateSectionMonth-input' }).value).toBe('03');
+    expect(month({ kind: 'select', options: ['January', 'March'] }).value).toBe('March');
+  });
+
+  it('ticks a Workday current job box named only by the text beside it', () => {
+    const box = (n: number) => field({ section: 'My Experience', legend: 'Professional Experience', label: 'I currently work here', name: 'currentlyWorkHere', id: `workExperience-${n}--currentlyWorkHere`, inputType: 'checkbox' },
+      { kind: 'checkbox', options: ['I currently work here'] });
+    const rows = plan([box(8), box(22)]);
+    expect(rows.map((row) => [row.key, row.index, row.value, row.status])).toEqual([['work.current', 0, 'I currently work here', 'ready'], ['work.current', 1, '', 'missing']]);
+  });
+
   it('lets two email fields both fill but only one first name', () => {
     const rows = plan([field({ label: 'Email' }), field({ label: 'Confirm email' }), field({ label: 'First Name' }), field({ placeholder: 'First name' })]);
     expect(rows.map((row) => row.status)).toEqual(['ready', 'ready', 'ready', 'unmatched']);

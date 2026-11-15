@@ -267,6 +267,12 @@ test('fills each Workday block added after the first, however Workday numbers th
   await expect(target.locator('[id="workExperience-22--companyName"]')).toHaveValue('Globex Inc');
   await expect(target.locator('[id="workExperience-22--jobTitle"]')).toHaveValue('Software Engineer');
   await expect(target.locator('[id="workExperience-36--jobTitle"]')).toHaveCount(0);
+  expect(saved['workExperience-8--startDate-dateSectionMonth-input']).toBe('01');
+  expect(saved['workExperience-8--startDate-dateSectionYear-input']).toBe('2021');
+  expect(saved['workExperience-22--startDate-dateSectionMonth-input']).toBe('03');
+  expect(saved['workExperience-22--endDate-dateSectionYear-input']).toBe('2020');
+  await expect(target.locator('[id="workExperience-8--currentlyWorkHere"]')).toBeChecked();
+  await expect(target.locator('[id="workExperience-22--currentlyWorkHere"]')).not.toBeChecked();
   await expect(panel.locator('#status')).toContainText('added 1 work block');
   await expect(target.locator('body')).not.toHaveAttribute('data-submitted', 'yes');
   await target.close();

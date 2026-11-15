@@ -2,6 +2,10 @@
 <meta charset="utf-8">
 <title>Workday style work experience</title>
 <!-- Workday numbers each block by an internal counter, as in workExperience-8 and workExperience-22. -->
+<style>
+  .date { display: inline-flex; gap: 4px; padding: 4px; border: 1px solid #888; }
+  .date input { width: 1px; height: 1px; padding: 0; border: 0; }
+</style>
 <form>
   <div data-automation-id="workExperienceSection" id="section">
     <h3>Work Experience</h3>
@@ -14,6 +18,14 @@
   const blocks = document.getElementById('blocks');
   let count = 0;
   let counter = 8;
+  // Workday draws a date as digits in a box, over inputs too small to see, labelled only "Month" and "Year".
+  function dateBox(n, which, label) {
+    const id = `workExperience-${n}--${which}Date-dateSection`;
+    return `<div><span>${label}</span><div class="date">
+      <div data-automation-id="dateSectionMonth-display">MM</div><input id="${id}Month-input" role="spinbutton" aria-label="Month">
+      <div data-automation-id="dateSectionYear-display">YYYY</div><input id="${id}Year-input" role="spinbutton" aria-label="Year">
+    </div></div>`;
+  }
   function addBlock() {
     count++;
     const n = counter;
@@ -24,12 +36,25 @@
     block.innerHTML = `<h4 id="heading-${n}">Professional Experience ${count}</h4>
       <div><label for="workExperience-${n}--jobTitle">Job Title</label><input id="workExperience-${n}--jobTitle" name="jobTitle"></div>
       <div><label for="workExperience-${n}--companyName">Company</label><input id="workExperience-${n}--companyName" name="companyName"></div>
-      <div><label for="workExperience-${n}--location">Location</label><input id="workExperience-${n}--location" name="location"></div>`;
+      <div><label for="workExperience-${n}--location">Location</label><input id="workExperience-${n}--location" name="location"></div>
+      <div><input type="checkbox" id="workExperience-${n}--currentlyWorkHere" name="currentlyWorkHere"><span>I currently work here</span></div>
+      ${dateBox(n, 'start', 'From')}${dateBox(n, 'end', 'To')}`;
     blocks.appendChild(block);
   }
   // Workday keeps its own copy of each value and only takes the typed text when the field loses focus.
+  // It then draws the field again as a new element with the same id.
   window.saved = {};
-  blocks.addEventListener('focusout', (event) => { if (event.target.id) window.saved[event.target.id] = event.target.value; });
+  blocks.addEventListener('focusout', (event) => {
+    const input = event.target;
+    if (!input.id || input.type === 'checkbox') return;
+    window.saved[input.id] = input.value;
+    setTimeout(() => {
+      if (!input.isConnected) return;
+      const fresh = input.cloneNode(true);
+      fresh.value = input.value;
+      input.replaceWith(fresh);
+    }, 0);
+  });
   addBlock();
   document.getElementById('add').addEventListener('click', () => setTimeout(addBlock, 50));
   document.querySelector('form').addEventListener('submit', (event) => {

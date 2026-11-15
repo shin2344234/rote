@@ -164,10 +164,25 @@ function domPath(el: Element): string {
   return parts.join(' > ');
 }
 
+// Workday splits a date into boxes like workExperience-5--startDate-dateSectionMonth-input. The input itself
+// is a sliver under the digits it shows, and its only label is "Month", so the scanner names it from the id.
+export const WORKDAY_DATE = /(start|end)Date-dateSection(Month|Year)-input$/i;
+
+function workdayDateLabel(el: HTMLElement): string {
+  const match = el.id.match(WORKDAY_DATE);
+  return match ? `${match[1].toLowerCase()} date ${match[2].toLowerCase()}` : '';
+}
+
+function workdayDateShown(el: HTMLElement): boolean {
+  let node = el.parentElement;
+  for (let depth = 0; node && depth < 3; depth++, node = node.parentElement) if (isVisible(node)) return true;
+  return false;
+}
+
 function signalsOf(el: HTMLElement, legend = ''): FieldSignals {
   const input = el as HTMLInputElement;
   return {
-    label: labelOf(el),
+    label: workdayDateLabel(el) || labelOf(el),
     ariaLabel: clean(el.getAttribute('aria-label')),
     legend,
     nearby: nearbyText(el),
@@ -375,7 +390,7 @@ export function scanFrame(frameId: number): ScanResult {
       if (el.disabled || el.readOnly) { skip('disabled or read-only'); continue; }
       if (el.getAttribute('aria-hidden') === 'true') { skip('aria-hidden helper input'); continue; }
       if (isSiteChrome(el)) { skip('footer or newsletter form'); continue; }
-      if (!isVisible(el)) { skip('hidden input'); continue; }
+      if (!isVisible(el) && !(WORKDAY_DATE.test(el.id) && workdayDateShown(el))) { skip('hidden input'); continue; }
       add(el, el.type === 'date' || el.type === 'month' ? 'date' : 'text', { hasValue: Boolean(el.value.trim()) });
     } else if (el instanceof HTMLTextAreaElement) {
       if (el.disabled || el.readOnly) { skip('disabled or read-only'); continue; }
@@ -403,6 +418,9 @@ export function scanFrame(frameId: number): ScanResult {
       signals.label = '';
       signals.ariaLabel = clean(container.getAttribute('aria-label'));
       signals.section = sectionOf(container);
+    } else if (!signals.label && !signals.ariaLabel) {
+      // Workday's "I currently work here" box has its text beside it but no label the scanner can read.
+      signals.label = options[0] ?? '';
     }
     const hasValue = members.some((el) => (el as HTMLInputElement).checked === true || el.getAttribute('aria-checked') === 'true');
     add(members[0], isRadio ? 'radio' : 'checkbox', { options, optionEls: members, signals, hasValue });

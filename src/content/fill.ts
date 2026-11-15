@@ -40,6 +40,18 @@ function blurField(el: HTMLElement): void {
   el.dispatchEvent(new FocusEvent('focusout', { bubbles: true, composed: true }));
 }
 
+// Workday swaps in a new element when a field loses focus, with the same id and the value it kept.
+// A handle to the old element would then look like a cleared field and hide the Add Another button.
+function liveHandle(fieldId: string): Handle | undefined {
+  const handle = handles.get(fieldId);
+  if (!handle || handle.el.isConnected || !handle.el.id) return handle;
+  const found = document.getElementById(handle.el.id);
+  if (!found || found.tagName !== handle.el.tagName) return handle;
+  const fresh = { ...handle, el: found };
+  handles.set(fieldId, fresh);
+  return fresh;
+}
+
 // Bypasses framework wrappers on the element so React and others see a real change.
 function setNativeValue(el: HTMLInputElement | HTMLTextAreaElement, value: string): void {
   const proto = el instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
@@ -423,7 +435,7 @@ function holdsValue({ el, kind, optionEls }: Handle): boolean {
 }
 
 async function fillOne(item: FillItem): Promise<FillResult> {
-  const handle = handles.get(item.fieldId);
+  const handle = liveHandle(item.fieldId);
   if (!handle || !handle.el.isConnected) return { fieldId: item.fieldId, ok: false, detail: 'field is gone from the page' };
   if (!item.overwrite && holdsValue(handle)) return { fieldId: item.fieldId, ok: false, detail: 'the field has a value now, so it was left alone' };
   const { el, kind } = handle;
@@ -477,7 +489,7 @@ export async function fillItems(items: FillItem[]): Promise<FillResult[]> {
 }
 
 export function uploadFile(fieldId: string, payload: FilePayload, mark: 'ok' | 'low'): FillResult {
-  const handle = handles.get(fieldId);
+  const handle = liveHandle(fieldId);
   if (!handle || !handle.el.isConnected) return { fieldId, ok: false, detail: 'field is gone from the page' };
   const bytes = Uint8Array.from(atob(payload.base64), (char) => char.charCodeAt(0));
   const file = new File([bytes], payload.name, { type: payload.type, lastModified: Date.now() });
@@ -577,7 +589,7 @@ export async function undoAll(): Promise<{ undone: number; notUndone: string[] }
 }
 
 export function readField(fieldId: string): string {
-  const handle = handles.get(fieldId);
+  const handle = liveHandle(fieldId);
   if (!handle || !handle.el.isConnected) return '';
   const { el, kind, optionEls } = handle;
   if (kind === 'radio' || kind === 'checkbox') return optionEls.filter(isChecked).map(optionLabel).join(', ');
@@ -624,7 +636,7 @@ function stillHolds(fieldId: string, handle: Handle, chosen?: string): boolean {
 // Lists the filled fields the page has since blanked or rebuilt. A field the user edited stays theirs.
 export function findLostFields(fields: { fieldId: string; chosen?: string }[]): string[] {
   return fields.filter(({ fieldId, chosen }) => {
-    const handle = handles.get(fieldId);
+    const handle = liveHandle(fieldId);
     if (!handle || !handle.el.isConnected) return true;
     const edited = [handle.el, ...handle.optionEls].some((el) => userEdited.has(el));
     return !edited && !stillHolds(fieldId, handle, chosen);
@@ -666,7 +678,7 @@ function findAddButton(field: HTMLElement, group: 'work' | 'education'): HTMLEle
 
 // Clicks "Add another" for a repeating section. Rote never clicks submit, and this never matches one.
 export async function addRow(fieldId: string, group: 'work' | 'education'): Promise<{ clicked: boolean; label: string }> {
-  const handle = handles.get(fieldId);
+  const handle = liveHandle(fieldId);
   if (!handle || !handle.el.isConnected) return { clicked: false, label: '' };
   const button = findAddButton(handle.el, group);
   if (!button) return { clicked: false, label: '' };
@@ -678,7 +690,7 @@ export async function addRow(fieldId: string, group: 'work' | 'education'): Prom
 }
 
 export function showField(fieldId: string): boolean {
-  const handle = handles.get(fieldId);
+  const handle = liveHandle(fieldId);
   if (!handle || !handle.el.isConnected) return false;
   const target = visibleTarget(handle.el);
   target.scrollIntoView({ block: 'center', behavior: 'smooth' });

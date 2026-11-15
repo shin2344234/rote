@@ -21,10 +21,13 @@ function formatDate(stored: string, field: ScannedField): string {
   return `${month}/${year}`;
 }
 
-function datePart(stored: string, part: 'Month' | 'Year'): string {
+// Workday's month box and other spin buttons take digits, so they get 03 where a dropdown gets March.
+function datePart(stored: string, part: 'Month' | 'Year', field: ScannedField): string {
   const { year, month } = readDate(stored);
   if (part === 'Year') return year;
-  return month ? MONTH_NAMES[Number(month) - 1] : '';
+  if (!month) return '';
+  const digits = field.role === 'spinbutton' || /dateSectionMonth/i.test(field.signals.id) || /^m{1,2}$/i.test(field.signals.placeholder.trim());
+  return digits ? month.padStart(2, '0') : MONTH_NAMES[Number(month) - 1];
 }
 
 export function valueFor(entry: CatalogEntry, index: number, profile: Profile, field: ScannedField): string {
@@ -35,7 +38,7 @@ export function valueFor(entry: CatalogEntry, index: number, profile: Profile, f
     // A single "Current role" box is ticked by choosing its own label.
     if (sub === 'current') return record.current ? field.options[0] ?? '' : '';
     const part = sub.match(/^(start|end)(Month|Year)$/);
-    if (part) return datePart(record[part[1]], part[2] as 'Month' | 'Year');
+    if (part) return datePart(record[part[1]], part[2] as 'Month' | 'Year', field);
     if (sub === 'start' || sub === 'end') return formatDate(record[sub], field);
     return record[sub] ?? '';
   }
